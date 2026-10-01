@@ -1,0 +1,20 @@
+{
+  "name": "accessibility-scan",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "web",
+    "worker"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w web",
+    "dev:worker": "npm run dev -w worker",
+    "scan": "npm run scan -w worker --",
+    "test": "npm test -w @a11y/shared",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "deploy:netlify": "bash scripts/deploy-netlify.sh"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

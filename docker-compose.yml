@@ -1,0 +1,47 @@
+# Raspberry Pi 4 (8 GB, 64-bit OS) setup: two scanner workers.
+# The web app is deployed to Netlify (see web/netlify.toml); it is only started here with
+#   docker compose --profile web up
+#
+# Two workers let two different scans run at the same time. Each has 2 browser tabs, so a single
+# scan crawls at the same speed as before, but one big scan no longer blocks the next one.
+# Only worker-1 runs Lighthouse, so the Pi never runs two Lighthouse Chromes at once.
+
+x-worker: &worker
+  build:
+    context: .
+    dockerfile: worker/Dockerfile
+  image: a11y-scan-worker
+  env_file: .env
+  shm_size: 1gb # Chromium needs more than Docker's 64 MB default
+  mem_limit: 3g # one runaway Chromium can't take down the whole Pi
+  restart: unless-stopped
+  stop_grace_period: 30s # let the current page finish; an interrupted scan resumes after ~2 min
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" } # keep logs from filling the SSD
+
+services:
+  worker-1:
+    <<: *worker
+    environment:
+      WORKER_CONCURRENCY: 2
+      LIGHTHOUSE_ENABLED: "true"
+
+  worker-2:
+    <<: *worker
+    environment:
+      WORKER_CONCURRENCY: 2
+      LIGHTHOUSE_ENABLED: "false"
+
+  # Optional: run the web app on the Pi as well instead of Netlify.
+  web:
+    profiles: ["web"]
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    env_file: .env
+    ports: ["3000:3000"]
+    restart: unless-stopped
