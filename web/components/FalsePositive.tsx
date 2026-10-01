@@ -30,7 +30,7 @@ export function FalsePositiveButton({ violationId, ruleHelp, ruleId }: { violati
       <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => dialogRef.current?.showModal()}>
         False positive<span className="sr-only">: {ruleHelp}</span>
       </Button>
-      <dialog ref={dialogRef} aria-labelledby={`${id}-title`} className="m-auto w-full max-w-md rounded-lg p-6 shadow-xl">
+      <dialog ref={dialogRef} aria-labelledby={`${id}-title`} className="m-auto w-[calc(100%-2rem)] max-w-md rounded-lg p-5 shadow-xl sm:p-6">
         <form onSubmit={submit} className="space-y-4">
           <div>
             <h2 id={`${id}-title`} className="text-lg font-semibold text-slate-900">
@@ -71,7 +71,7 @@ export function FalsePositiveButton({ violationId, ruleHelp, ruleId }: { violati
               maxLength={500}
               rows={3}
               placeholder="e.g. Contrast is fine; axe can't read the gradient background"
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-base sm:text-sm"
             />
           </div>
 
@@ -81,7 +81,7 @@ export function FalsePositiveButton({ violationId, ruleHelp, ruleId }: { violati
             </p>
           )}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => dialogRef.current?.close()}>
               Cancel
             </Button>

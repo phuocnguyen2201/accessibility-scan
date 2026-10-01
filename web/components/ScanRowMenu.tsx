@@ -85,7 +85,7 @@ export function ScanRowMenu({
             setOpen(true);
           }
         }}
-        className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+        className="rounded-md p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
       >
         <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
       </button>
@@ -126,7 +126,7 @@ export function ScanRowMenu({
         ref={dialogRef}
         aria-labelledby={`${id}-title`}
         aria-describedby={`${id}-desc`}
-        className="m-auto w-full max-w-md rounded-lg p-6 shadow-xl"
+        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-lg p-5 shadow-xl sm:p-6"
         onClose={() => buttonRef.current?.focus()}
       >
         <h2 id={`${id}-title`} className="text-lg font-semibold text-slate-900">
@@ -142,7 +142,7 @@ export function ScanRowMenu({
             {error}
           </p>
         )}
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
           <Button variant="secondary" autoFocus onClick={() => dialogRef.current?.close()}>
             Cancel
           </Button>

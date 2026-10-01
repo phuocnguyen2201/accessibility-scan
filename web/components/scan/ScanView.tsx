@@ -50,8 +50,8 @@ export function ScanView({ initialScan, tab }: { initialScan: ScanWithSite; tab:
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="truncate text-2xl font-bold text-slate-900">{scan.site.normalized_url}</h1>
+        <div className="min-w-0 max-w-full">
+          <h1 className="truncate text-xl font-bold text-slate-900 sm:text-2xl" title={scan.site.normalized_url}>{scan.site.normalized_url}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
             <StatusBadge status={scan.status} />
             <span>Started {formatDate(scan.started_at ?? scan.created_at)}</span>

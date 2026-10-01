@@ -25,9 +25,9 @@ export function Button({
 
 export function Card({ title, children, className, actions }: { title?: ReactNode; children: ReactNode; className?: string; actions?: ReactNode }) {
   return (
-    <section className={cx("rounded-lg border border-slate-200 bg-white p-5 shadow-sm", className)}>
+    <section className={cx("rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5", className)}>
       {(title || actions) && (
-        <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           {title && <h2 className="text-base font-semibold text-slate-900">{title}</h2>}
           {actions}
         </div>
@@ -60,11 +60,11 @@ export function ScoreBadge({ score, estimated, label }: { score: number | null |
 export function StatCard({ label, value, hint, score }: { label: string; value: ReactNode; hint?: ReactNode; score?: number | null }) {
   const tone = score === undefined ? null : scoreTone(score);
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
       <div className="text-sm text-slate-600">{label}</div>
       <div
         className={cx(
-          "mt-1 text-3xl font-bold tabular-nums",
+          "mt-1 text-2xl font-bold tabular-nums sm:text-3xl",
           tone === "good" && "text-green-700",
           tone === "ok" && "text-amber-700",
           tone === "bad" && "text-red-700",

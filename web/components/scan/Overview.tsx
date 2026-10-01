@@ -17,7 +17,21 @@ const IMPACT_COLOR: Record<Impact, string> = {
 };
 const SERIES_1 = "#2a78d6";
 
+/** True below Tailwind's `sm` breakpoint; false during SSR. */
+function useNarrow() {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setNarrow(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return narrow;
+}
+
 export function Overview({ scan }: { scan: Scan }) {
+  const narrow = useNarrow();
   const live = scan.status === "queued" || scan.status === "running";
   const [stats, setStats] = useState<ScanSummary | null>(live ? null : scan.summary);
   const [worst, setWorst] = useState<PageRow[]>([]);
@@ -56,7 +70,7 @@ export function Overview({ scan }: { scan: Scan }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
         <StatCard label="Total pages" value={stats.total_pages} hint={`${stats.scanned_pages} scanned · ${stats.error_pages} errors`} />
         <StatCard label="Accessibility score" value={stats.avg_a11y ?? "-"} score={stats.avg_a11y} hint="Average, axe-core" />
         <StatCard label="SEO score" value={stats.avg_seo ?? "-"} score={stats.avg_seo} hint="Average of on-page checks" />
@@ -68,7 +82,7 @@ export function Overview({ scan }: { scan: Scan }) {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card title="Most common accessibility issues" className="lg:col-span-2">
           {stats.top_issues.length === 0 ? (
             <p className="text-sm text-slate-600">No issues found yet.</p>
@@ -77,12 +91,13 @@ export function Overview({ scan }: { scan: Scan }) {
               <p className="mb-2 text-xs text-slate-600">Number of pages affected by each rule</p>
               <div style={{ height: Math.max(200, stats.top_issues.length * 36) }} aria-hidden="true">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats.top_issues} layout="vertical" margin={{ left: 8, right: 40, top: 0, bottom: 0 }}>
+                  <BarChart data={stats.top_issues} layout="vertical" margin={{ left: narrow ? 0 : 8, right: 32, top: 0, bottom: 0 }}>
                     <XAxis type="number" hide allowDecimals={false} />
                     <YAxis
                       type="category"
                       dataKey="rule_id"
-                      width={170}
+                      width={narrow ? 110 : 170}
+                      tickFormatter={(v: string) => (narrow && v.length > 16 ? `${v.slice(0, 15)}…` : v)}
                       tickLine={false}
                       axisLine={{ stroke: "#c3c2b7" }}
                       tick={{ fill: "#52514e", fontSize: 12 }}
@@ -114,9 +129,9 @@ export function Overview({ scan }: { scan: Scan }) {
                 <thead className="text-xs text-slate-600">
                   <tr>
                     <th className="py-1 font-medium">Rule</th>
-                    <th className="py-1 font-medium">Impact</th>
+                    <th className="px-2 py-1 font-medium">Impact</th>
                     <th className="py-1 text-right font-medium">Pages</th>
-                    <th className="py-1 text-right font-medium">Elements</th>
+                    <th className="hidden py-1 text-right font-medium sm:table-cell">Elements</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -132,11 +147,11 @@ export function Overview({ scan }: { scan: Scan }) {
                         )}
                         <span className="ml-1 text-xs text-slate-500">({t.rule_id})</span>
                       </td>
-                      <td className="py-1.5">
+                      <td className="px-2 py-1.5">
                         <ImpactBadge impact={t.impact} />
                       </td>
                       <td className="py-1.5 text-right tabular-nums">{t.pages}</td>
-                      <td className="py-1.5 text-right tabular-nums">{t.nodes}</td>
+                      <td className="hidden py-1.5 text-right tabular-nums sm:table-cell">{t.nodes}</td>
                     </tr>
                   ))}
                 </tbody>

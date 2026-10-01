@@ -38,7 +38,7 @@ export default async function PageDetail({ params }: { params: Promise<{ scanId:
       </nav>
 
       <div>
-        <h1 className="break-all text-2xl font-bold text-slate-900">{p.title || p.url}</h1>
+        <h1 className="break-all text-xl font-bold text-slate-900 sm:text-2xl">{p.title || p.url}</h1>
         <p className="mt-1 text-sm text-slate-600">
           <a href={p.url} target="_blank" rel="noreferrer" className="break-all text-blue-700 hover:underline">
             {p.url}
@@ -49,7 +49,7 @@ export default async function PageDetail({ params }: { params: Promise<{ scanId:
         {p.error && <p className="mt-2 text-sm text-red-700">{p.error}</p>}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Accessibility" value={p.a11y_score ?? "-"} score={p.a11y_score} hint={lh?.accessibility != null ? `Lighthouse: ${lh.accessibility}` : "axe-core"} />
         <StatCard label="SEO" value={p.seo_score ?? "-"} score={p.seo_score} hint={lh?.seo != null ? `Lighthouse: ${lh.seo}` : "On-page checks"} />
         <StatCard label="Performance" value={p.perf_score ?? "-"} score={p.perf_score} hint={p.perf_estimated ? "Estimated - run Lighthouse for a real score" : "Lighthouse (desktop)"} />
@@ -66,9 +66,9 @@ export default async function PageDetail({ params }: { params: Promise<{ scanId:
         ) : (
           <ul className="space-y-3">
             {active.map((v) => (
-              <li key={v.id} className="flex items-start gap-2 rounded-md border border-slate-200">
+              <li key={v.id} className="flex flex-col gap-2 rounded-md border border-slate-200 sm:flex-row sm:items-start">
                 <ViolationDetails v={v} />
-                <div className="shrink-0 p-2">
+                <div className="shrink-0 px-3 pb-3 sm:p-2">
                   <FalsePositiveButton violationId={v.id} ruleHelp={v.help} ruleId={v.rule_id} />
                 </div>
               </li>
@@ -82,7 +82,7 @@ export default async function PageDetail({ params }: { params: Promise<{ scanId:
             <p className="mb-3 text-xs text-slate-600">Excluded from this page&apos;s score and from the dashboard.</p>
             <ul className="space-y-2">
               {dismissed.map((v) => (
-                <li key={v.id} className="flex items-start gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50">
+                <li key={v.id} className="flex flex-col gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 sm:flex-row sm:items-start">
                   <div className="min-w-0 flex-1">
                     <ViolationDetails v={v} muted />
                     <p className="px-3 pb-3 text-xs text-slate-600">
@@ -97,7 +97,7 @@ export default async function PageDetail({ params }: { params: Promise<{ scanId:
                     </p>
                   </div>
                   {v.dismissal && (
-                    <div className="shrink-0 p-2">
+                    <div className="shrink-0 px-3 pb-3 sm:p-2">
                       <RestoreButton dismissalId={v.dismissal.id} ruleHelp={v.help} />
                     </div>
                   )}
@@ -108,7 +108,7 @@ export default async function PageDetail({ params }: { params: Promise<{ scanId:
         )}
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card title="Performance" actions={<LighthouseButton pageId={p.id} status={p.lighthouse_status} />}>
           {lh ? (
             <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">

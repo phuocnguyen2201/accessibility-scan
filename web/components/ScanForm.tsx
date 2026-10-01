@@ -125,7 +125,7 @@ export function ScanForm({
       <dialog
         ref={dialogRef}
         aria-labelledby="dup-title"
-        className="m-auto w-full max-w-md rounded-lg p-6 shadow-xl"
+        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-lg p-5 shadow-xl sm:p-6"
         onClose={() => setExisting(null)}
       >
         {existing && (

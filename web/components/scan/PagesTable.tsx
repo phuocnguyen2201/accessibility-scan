@@ -16,6 +16,17 @@ const COLUMNS = [
 ].join(" ");
 const PAGE_SIZE = 100;
 
+// Sort choices for the phone layout, where there are no column headers to click.
+const MOBILE_SORTS: { value: string; label: string; key: SortKey; asc: boolean }[] = [
+  { value: "depth-asc", label: "Depth", key: "depth", asc: true },
+  { value: "a11y_score-asc", label: "Worst accessibility", key: "a11y_score", asc: true },
+  { value: "violation_count-desc", label: "Most issues", key: "violation_count", asc: false },
+  { value: "seo_score-asc", label: "Worst SEO", key: "seo_score", asc: true },
+  { value: "perf_score-asc", label: "Worst performance", key: "perf_score", asc: true },
+  { value: "http_status-desc", label: "HTTP status", key: "http_status", asc: false },
+  { value: "url-asc", label: "URL (A-Z)", key: "url", asc: true },
+];
+
 const STATUS_TEXT: Record<PageRow["crawl_status"], string> = {
   pending: "Queued",
   scanning: "Scanning...",
@@ -93,7 +104,7 @@ export function PagesTable({ scanId, live }: { scanId: string; live: boolean }) 
   return (
     <Card>
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div className="min-w-60 flex-1">
+        <div className="w-full sm:w-auto sm:min-w-60 sm:flex-1">
           <label htmlFor="page-search" className="block text-xs font-medium text-slate-700">
             Search
           </label>
@@ -103,10 +114,10 @@ export function PagesTable({ scanId, live }: { scanId: string; live: boolean }) 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="URL or title"
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-base sm:text-sm"
           />
         </div>
-        <div>
+        <div className="flex-1 sm:flex-none">
           <label htmlFor="page-filter" className="block text-xs font-medium text-slate-700">
             Show
           </label>
@@ -114,7 +125,7 @@ export function PagesTable({ scanId, live }: { scanId: string; live: boolean }) 
             id="page-filter"
             value={filter}
             onChange={(e) => setFilter(e.target.value as Filter)}
-            className="mt-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-base sm:w-auto sm:text-sm"
           >
             <option value="all">All pages</option>
             <option value="critical">Has critical issues</option>
@@ -122,12 +133,78 @@ export function PagesTable({ scanId, live }: { scanId: string; live: boolean }) 
             <option value="pending">Not scanned yet</option>
           </select>
         </div>
-        <p className="text-sm text-slate-600" aria-live="polite">
+        <div className="flex-1 sm:hidden">
+          <label htmlFor="page-sort" className="block text-xs font-medium text-slate-700">
+            Sort by
+          </label>
+          <select
+            id="page-sort"
+            value={`${sort.key}-${sort.asc ? "asc" : "desc"}`}
+            onChange={(e) => {
+              const s = MOBILE_SORTS.find((o) => o.value === e.target.value);
+              if (s) setSort({ key: s.key, asc: s.asc });
+            }}
+            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-base"
+          >
+            {!MOBILE_SORTS.some((o) => o.key === sort.key && o.asc === sort.asc) && (
+              <option value={`${sort.key}-${sort.asc ? "asc" : "desc"}`}>Custom</option>
+            )}
+            {MOBILE_SORTS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="w-full text-sm text-slate-600 sm:w-auto" aria-live="polite">
           {rows.length} of {pages.size} pages
         </p>
       </div>
 
-      <div className="overflow-x-auto">
+      <ul className="divide-y divide-slate-100 sm:hidden">
+        {rows.slice(0, limit).map((p) => {
+          const linked = p.crawl_status === "done" || p.crawl_status === "error";
+          return (
+            <li key={p.id} className="py-3">
+              {linked ? (
+                <Link href={`/scans/${scanId}/pages/${p.id}`} className="block truncate font-medium text-blue-700 hover:underline" title={p.url}>
+                  {shortPath(p.url)}
+                </Link>
+              ) : (
+                <span className="block truncate font-medium text-slate-800" title={p.url}>
+                  {shortPath(p.url)}
+                </span>
+              )}
+              {p.title && <span className="block truncate text-xs text-slate-500">{p.title}</span>}
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+                <span className="inline-flex items-center gap-1">
+                  A11y <ScoreBadge score={p.a11y_score} label="Accessibility" />
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  SEO <ScoreBadge score={p.seo_score} label="SEO" />
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  Perf <ScoreBadge score={p.perf_score} estimated={p.perf_estimated} label="Performance" />
+                </span>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-slate-600">
+                <span className="tabular-nums">
+                  {p.violation_count} issues
+                  {p.critical_count > 0 && <span className="text-red-700"> ({p.critical_count} critical)</span>}
+                </span>
+                <span>·</span>
+                <span className={(p.http_status ?? 0) >= 400 ? "font-semibold text-red-700" : ""}>HTTP {p.http_status ?? "-"}</span>
+                <span>·</span>
+                <span>Depth {p.depth}</span>
+                <span>·</span>
+                <span title={p.error ?? undefined}>{STATUS_TEXT[p.crawl_status]}</span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-sm">
           <caption className="sr-only">Pages found on this site. Column headers are sortable.</caption>
           <thead className="border-b border-slate-200 text-xs text-slate-600">

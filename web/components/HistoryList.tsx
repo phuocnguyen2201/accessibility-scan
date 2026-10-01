@@ -58,7 +58,7 @@ export function HistoryList() {
         placeholder="Search sites..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+        className="mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-base sm:text-sm"
       />
       {filtered == null ? (
         <p className="text-sm text-slate-600">Loading...</p>
@@ -75,8 +75,10 @@ export function HistoryList() {
                     {formatDate(s.created_at)} · {s.status === "completed" ? s.summary?.total_pages ?? s.pages_found : `${s.pages_scanned}/${s.pages_found}`} pages
                   </div>
                 </div>
-                <ScoreBadge score={s.summary?.avg_a11y} label="Accessibility" />
-                <StatusBadge status={s.status} />
+                <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
+                  <ScoreBadge score={s.summary?.avg_a11y} label="Accessibility" />
+                  <StatusBadge status={s.status} />
+                </div>
               </Link>
               <ScanRowMenu
                 scanId={s.id}

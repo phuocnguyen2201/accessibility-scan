@@ -15,7 +15,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
           <Notice tone="success">Your email is verified. Welcome! Your scans are private to your account.</Notice>
         </div>
       )}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div>
           <h1 className="mb-2 text-2xl font-bold text-slate-900">Scan a website</h1>
           <p className="mb-6 text-slate-600">
