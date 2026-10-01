@@ -13,7 +13,7 @@ import {
 import { config } from "./config";
 
 const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"];
-const MAX_NODES = 5;
+const MAX_NODES = 25; // elements stored per rule per page (the UI pages through them one at a time)
 const MAX_SNIPPET = 500;
 
 export interface ViolationInsert {

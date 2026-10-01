@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { IMPACTS, type Dismissal, type LighthouseRow, type PageRow, type ViolationRow } from "@a11y/shared";
+import { IMPACTS, type Dismissal, type LighthouseRow, type PageRow } from "@a11y/shared";
 import { FalsePositiveButton, RestoreButton } from "@/components/FalsePositive";
 import { LighthouseButton } from "@/components/LighthouseButton";
-import { Card, ImpactBadge, StatCard } from "@/components/ui";
+import { Card, StatCard } from "@/components/ui";
+import { ViolationDetails, type ViolationSummary } from "@/components/ViolationDetails";
 import { formatBytes, formatDate, formatMs } from "@/lib/format";
 import { serverClient } from "@/lib/supabase-server";
 
@@ -14,13 +15,14 @@ export default async function PageDetail({ params }: { params: Promise<{ scanId:
   const db = await serverClient();
   const [{ data: page }, { data: violations }, { data: lighthouse }] = await Promise.all([
     db.from("pages").select("*").eq("id", pageId).eq("scan_id", scanId).maybeSingle(),
-    db.from("violations").select("*, dismissal:dismissals(id, page_key, reason, created_at)").eq("page_id", pageId),
+    // Skip `nodes` (the stored elements): ViolationDetails fetches them one at a time when an issue is expanded.
+    db.from("violations").select(VIOLATION_COLUMNS).eq("page_id", pageId),
     db.from("lighthouse_results").select("*").eq("page_id", pageId).maybeSingle(),
   ]);
   if (!page) notFound();
   const p = page as PageRow;
   const lh = lighthouse as LighthouseRow | null;
-  const vs = ((violations as ViolationWithDismissal[]) ?? []).sort(
+  const vs = ((violations as unknown as ViolationWithDismissal[] | null) ?? []).sort(
     (a, b) => IMPACTS.indexOf(a.impact ?? "minor") - IMPACTS.indexOf(b.impact ?? "minor") || b.node_count - a.node_count,
   );
   const active = vs.filter((v) => !v.dismissal_id);
@@ -158,48 +160,12 @@ export default async function PageDetail({ params }: { params: Promise<{ scanId:
   );
 }
 
-type ViolationWithDismissal = ViolationRow & {
+const VIOLATION_COLUMNS =
+  "id, page_id, scan_id, rule_id, impact, description, help, help_url, wcag_tags, node_count, dismissal_id, dismissal:dismissals(id, page_key, reason, created_at)";
+
+type ViolationWithDismissal = ViolationSummary & {
   dismissal: Pick<Dismissal, "id" | "page_key" | "reason" | "created_at"> | null;
 };
-
-function ViolationDetails({ v, muted }: { v: ViolationRow; muted?: boolean }) {
-  return (
-    <details className="min-w-0 flex-1">
-      <summary className="flex cursor-pointer flex-wrap items-center gap-2 p-3">
-        <ImpactBadge impact={v.impact} />
-        <span className={`font-medium ${muted ? "text-slate-600 line-through decoration-slate-400" : "text-slate-900"}`}>{v.help}</span>
-        <span className="text-xs text-slate-500">
-          {v.rule_id} · {v.node_count} element{v.node_count === 1 ? "" : "s"}
-        </span>
-      </summary>
-      <div className="space-y-3 border-t border-slate-200 p-3 text-sm">
-        <p className="text-slate-700">{v.description}</p>
-        <div className="flex flex-wrap gap-1">
-          {v.wcag_tags.map((t) => (
-            <span key={t} className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">
-              {t}
-            </span>
-          ))}
-          {v.help_url && (
-            <a href={v.help_url} target="_blank" rel="noreferrer" className="ml-2 text-xs text-blue-700 hover:underline">
-              How to fix (Deque University)<span className="sr-only"> (opens in a new tab)</span>
-            </a>
-          )}
-        </div>
-        {v.nodes.map((n, i) => (
-          <div key={i} className="rounded bg-slate-50 p-2">
-            <div className="text-xs font-medium text-slate-700">
-              Selector: <code className="break-all">{n.target}</code>
-            </div>
-            <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all rounded bg-slate-900 p-2 text-xs text-slate-100">{n.html}</pre>
-            {n.failureSummary && <p className="mt-1 whitespace-pre-line text-xs text-slate-600">{n.failureSummary}</p>}
-          </div>
-        ))}
-        {v.node_count > v.nodes.length && <p className="text-xs text-slate-500">+ {v.node_count - v.nodes.length} more elements not stored</p>}
-      </div>
-    </details>
-  );
-}
 
 function Metric({ label, value }: { label: string; value: React.ReactNode }) {
   return (
