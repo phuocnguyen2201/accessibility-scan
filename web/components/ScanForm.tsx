@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { SCAN_CHECK_LABELS, SCAN_CHECKS, type ScanCheck } from "@a11y/shared";
 import { checkSite, startScan, type CheckResult } from "@/app/actions";
 import { formatDate } from "@/lib/format";
 import { Button, Card, StatusBadge } from "./ui";
@@ -25,6 +26,9 @@ export function ScanForm({
   const [maxPages, setMaxPages] = useState(Math.min(defaultMaxPages, maxPagesCap));
   const lighthouseCap = Math.min(maxPages, maxLighthouseSample ?? Infinity);
   const [lighthouseSample, setLighthouseSample] = useState(defaultLighthouseSample);
+  const [checks, setChecks] = useState<ScanCheck[]>([...SCAN_CHECKS]);
+  const toggleCheck = (c: ScanCheck, on: boolean) =>
+    setChecks((prev) => SCAN_CHECKS.filter((x) => (x === c ? on : prev.includes(x))));
   const [error, setError] = useState<string | null>(null);
   const [existing, setExisting] = useState<Existing | null>(null);
   const [pending, startTransition] = useTransition();
@@ -32,7 +36,7 @@ export function ScanForm({
 
   const launch = () =>
     startTransition(async () => {
-      const res = await startScan({ url, maxPages, lighthouseSample });
+      const res = await startScan({ url, maxPages, lighthouseSample, checks });
       dialogRef.current?.close();
       if (!res.ok) return setError(res.error);
       router.push(`/scans/${res.scanId}`);
@@ -73,7 +77,7 @@ export function ScanForm({
             aria-describedby={error ? "url-error" : undefined}
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-500"
           />
-          <Button type="submit" disabled={pending || !url.trim()}>
+          <Button type="submit" disabled={pending || !url.trim() || checks.length === 0}>
             {pending ? "Checking..." : "Scan"}
           </Button>
         </div>
@@ -82,6 +86,26 @@ export function ScanForm({
             {error}
           </p>
         )}
+
+        <fieldset className="mt-4" aria-describedby="checks-hint">
+          <legend className="text-sm font-medium text-slate-800">What to check</legend>
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2">
+            {SCAN_CHECKS.map((c) => (
+              <label key={c} className="inline-flex items-center gap-2 text-sm text-slate-800">
+                <input
+                  type="checkbox"
+                  checked={checks.includes(c)}
+                  onChange={(e) => toggleCheck(c, e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                {SCAN_CHECK_LABELS[c]}
+              </label>
+            ))}
+          </div>
+          <p id="checks-hint" className={`mt-1 text-xs ${checks.length ? "text-slate-600" : "text-red-700"}`}>
+            {checks.length ? "Best practices only runs on the Lighthouse sample." : "Choose at least one check."}
+          </p>
+        </fieldset>
 
         <details className="mt-4">
           <summary className="cursor-pointer text-sm text-slate-700">Advanced options</summary>

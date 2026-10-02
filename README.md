@@ -1,120 +1,98 @@
 # A11y Site Scanner
 
-Crawls every internal page of a website and audits each page for **accessibility** (axe-core), **SEO** (on-page checks) and **performance** (page timings on every page, plus Lighthouse on a sample). Results are stored per account and update live while the scan runs.
+Scan a whole website for **accessibility**, **SEO**, **performance** and **best-practice** problems, page by page, and see exactly what to fix.
 
-**Try it live:** https://accessibility-scan.netlify.app — sign up with your email, verify it, and start a scan.
+**Try it live:** https://accessibility-scan.netlify.app — sign up with your email (or continue as a guest) and start a scan.
 
-```
-Browser ──► Next.js (web/) ──► Supabase (Postgres + Realtime)
-                                  ▲
-                 worker/ (Node) ──┘  claims queued scans, crawls with
-                 Playwright + @axe-core/playwright + Lighthouse
-```
+## Scanning a site
 
-| Folder | What it is |
-|---|---|
-| `web/` | Next.js UI: scan form + history, scan dashboard, pages table, page detail, auth pages |
-| `worker/` | Long-running scanner service and CLI |
-| `packages/shared/` | URL normalization, score formulas, shared types |
-| `supabase/` | Schema, RLS policies, queue / stats RPCs, auth email templates |
+- **Whole-site scan**: enter one URL and the scanner finds every page of the site through its links and sitemap. It respects `robots.txt`.
+- **Stays on your site**: only pages on the same domain are scanned (`www` and the bare domain count as one site). Files and logout links are skipped.
+- **Choose what to check**: tick any of Accessibility, SEO, Performance and Best practices. Only the checks you pick are run and shown in the results.
+- **Advanced options**: set the maximum number of pages (up to 800 by default) and how many pages get an in-depth Lighthouse audit.
+- **Live progress**: scores and counts update as each page finishes. You can leave the page and come back.
+- **Cancel any time**: stopping a scan keeps the results for the pages already checked.
+- **Re-scan**: run the same site again with the same settings. If you enter a site you've already scanned, you're offered to view the last results or scan again. Different spellings of the same address (`https://www.Example.com/?utm_source=x` and `example.com`) are recognized as the same site.
 
-## Features
+## What gets checked
 
-### Site crawling
+### Accessibility
 
-- **Whole-site crawl**: breadth-first, seeded from `sitemap.xml`, respects `robots.txt`.
-- **Stays on the site**: same host only (`www` and the bare domain count as one), skips files and logout links, never exceeds the page limit.
-- **Configurable per scan**: max pages and Lighthouse sample size under *Advanced options*.
-- **Resumable**: workers send heartbeats. If one dies, another worker (or the same one after a restart) picks the scan up 2 minutes later and continues where it stopped.
-- **Cancellable**: *Cancel scan* stops after the pages currently in progress; the summary is still computed.
-- **Live progress**: the UI subscribes to Supabase Realtime, so counts and scores update as pages finish.
+- Every page is checked against **WCAG 2.0, 2.1 and 2.2 (levels A and AA)** plus accessibility best practices.
+- Each issue shows how serious it is (critical, serious, moderate, minor), the WCAG rules it relates to, a plain description and a **How to fix** link.
+- Step through the affected elements one by one with **Previous / Next**, each with its HTML and the reason it failed.
 
-### Duplicate detection
+### SEO
 
-URLs are normalized before lookup: scheme, `www.`, letter case, trailing slash and `#hash` are ignored, tracking params (`utm_*`, `gclid`, …) are dropped and the rest are sorted. So `https://www.Example.com/?utm_source=x` and `example.com` are the same site.
+Nine on-page checks on every page:
 
-Submitting a site you already scanned offers **View results** or **Re-scan**. A re-scan adds a new entry to that site's history.
-
-### Accessibility audit
-
-- axe-core runs on **every** page against WCAG 2.0 / 2.1 A + AA, WCAG 2.2 AA and best-practice rules.
-- Each issue shows its impact, WCAG tags, a description and a **How to fix** link to Deque University.
-- Affected elements (up to 25 per rule per page) can be stepped through with **Previous / Next**, each with its HTML snippet and the reasons it failed.
-
-### SEO checks
-
-Nine on-page checks per page: HTTP 200, title length, meta description, exactly one `<h1>`, canonical link, `lang` attribute, viewport meta, no `noindex`, and image `alt` attributes. The Lighthouse SEO score is shown alongside when available.
+- Page loads successfully (HTTP 200)
+- Title is 10–60 characters
+- Meta description is 50–160 characters
+- Exactly one main heading (`<h1>`)
+- Canonical link is set
+- Page language is declared
+- Mobile viewport is set
+- Page isn't hidden from search engines (no `noindex`)
+- Images have `alt` text
 
 ### Performance
 
-- **Every page**: TTFB, DOMContentLoaded, load time, total transfer size and request count.
-- **Lighthouse (desktop)**: runs on the shallowest N pages of each scan (default 50). Any other page can be audited on demand with **Run Lighthouse** on its detail page.
+- **Every page**: time to first byte, page load times, total download size and number of requests.
+- **Lighthouse audit** on a sample of pages: Largest Contentful Paint, First Contentful Paint, Total Blocking Time, Cumulative Layout Shift and Speed Index.
+- Run Lighthouse on **any other page** with one click from its detail page.
 
-### Scores
+### Best practices
 
-| Score | How it is computed |
+The Lighthouse best-practices score, shown for pages that get a Lighthouse audit.
+
+## Scores
+
+Each page gets a 0–100 score per category, and the dashboard shows the site-wide average.
+
+| Score | What it means |
 |---|---|
-| Accessibility | axe results weighted by impact (critical 10, serious 7, moderate 3, minor 1): `passed / (passed + violated) × 100`, where each passed rule counts as weight 3 |
-| SEO | % of the 9 on-page checks passed |
-| Performance | Lighthouse score where it ran. Otherwise estimated from TTFB, load time, page weight and request count, marked with `*` in the UI |
+| Accessibility | Based on how many accessibility rules pass and fail, with serious problems weighing more |
+| SEO | Share of the nine SEO checks that pass |
+| Performance | The Lighthouse score where it ran; otherwise an estimate from page timings, marked with `*` |
+| Best practices | The Lighthouse best-practices score |
 
-### Scan dashboard
+## Reading the results
 
-- **Overview**: total / scanned / errored pages and average accessibility, SEO and performance scores.
-- **Most common accessibility issues** across the site.
-- **Issues by impact** breakdown (critical, serious, moderate, minor).
-- **Pages needing the most work**, linked to their detail pages.
+### Dashboard
 
-### Pages table
+- Total pages found, scanned and with errors.
+- Average score for each category you checked.
+- **Most common accessibility issues** across the site, with how many pages each affects.
+- **Issues by severity** breakdown.
+- **Pages needing the most work**, each linking to its details.
 
-- **Search** by URL.
-- **Filter**: all pages, has critical issues, errors / broken (4xx, 5xx), not scanned yet.
-- **Sort** by depth, accessibility, issue count, SEO, performance, HTTP status or URL.
+### Pages list
+
+- **Search** by URL or page title.
+- **Filter** to pages with critical issues, broken pages (4xx / 5xx errors) or pages not scanned yet.
+- **Sort** by any score, issue count, HTTP status, depth or URL.
 - Works as a table on desktop and as cards on mobile.
 
-### False positives
+### Page details
 
-Each accessibility issue on a page has a **False positive** button.
+Every score, accessibility issue, SEO check and performance metric for a single page, plus the **Run Lighthouse** button.
 
-- **Scope**: only this page, or every page on the site (useful for a shared header or widget). An optional reason can be added.
-- **Effect**: the issue moves to a *Marked as false positive* section with a **Restore** button, and is excluded from the page score, issue counts, dashboard averages and charts.
-- **Persistent**: markings are stored per site, so they apply automatically to future re-scans.
+## False positives
 
-### History
+Think an accessibility issue is wrong? Mark it as a **False positive**:
 
-The home page lists your previous scans. Each row opens that scan's results, and its menu can delete the scan (a running scan must be cancelled first).
+- Hide it on **just this page** or on **every page of the site** (handy for a shared header or widget), with an optional note.
+- It's removed from scores, counts and charts, and listed separately with a **Restore** button.
+- Your markings are remembered for the site, so future re-scans respect them too.
 
-### Accounts
+## History
 
-- Email + password sign-up with **email verification**, resend-verification and **password reset** flows.
-- Every page except the auth pages requires sign-in; you're returned to the original page afterwards.
-- **Guest mode**: *Continue as guest* on the sign-in page starts a Supabase anonymous session, so no account is needed. Guests can start **one scan per hour** (`GUEST_SCAN_COOLDOWN_MINUTES`), checked per guest and per client IP (stored only as a hash), with smaller limits (`GUEST_MAX_PAGES`, default 100; `GUEST_LIGHTHOUSE_SAMPLE`, default 5). Requires *Allow anonymous sign-ins* in Supabase → Authentication → Sign In / Providers.
-- **Results are private**: users only see their own sites and scans, enforced by database RLS, not just the UI. Duplicate detection is per account, so two users can each scan `example.com`.
+Your home page lists every scan you've run. Open any of them to see its results, or delete scans you no longer need.
 
-### CLI
+## Accounts and privacy
 
-Queue and run a scan without the UI. The scan is saved to the given account's history:
-
-```bash
-npm run scan -- https://example.com --email you@example.com --max 50 --lighthouse 5
-```
-
-### Security
-
-- The browser only gets the anon key plus the user's session. All writes go through server actions (which verify ownership) or the worker.
-- The worker refuses to scan hosts that resolve to private / internal IPs (`BLOCK_PRIVATE_IPS`, on by default).
-
-## Scale and tuning
-
-- axe takes about 2–4 s per page with `WORKER_CONCURRENCY` tabs (default 4), so **800 pages take roughly 10–15 min**.
-- Lighthouse takes 11–15 s per page and runs one page at a time, which is why it's sampled (`DEFAULT_LIGHTHOUSE_SAMPLE`).
-- Page limit defaults to 800; raise it with `MAX_PAGES_CAP` (e.g. `1200`).
-- Storage stays small: at most 25 example elements per rule per page, and full Lighthouse reports aren't stored.
-- Each worker runs one scan at a time; run more workers to scan sites in parallel. `LIGHTHOUSE_ENABLED` lets you restrict Lighthouse to one worker on a small host.
-
-## Tests
-
-```bash
-npm test           # URL normalization + scoring unit tests
-npm run typecheck
-```
+- Sign up with email and password, with email verification and password reset.
+- **Guest mode**: try it without an account. Guests can run one scan per hour, on up to 100 pages with Lighthouse on 5 of them.
+- **Your results are private**: only you can see your sites and scans.
+- Scans are limited to public websites; private or internal network addresses are refused.

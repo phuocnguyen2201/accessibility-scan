@@ -1,8 +1,8 @@
 /**
- * Usage: npm run scan -- https://example.com --email you@example.com [--max 100] [--lighthouse 5]
+ * Usage: npm run scan -- https://example.com --email you@example.com [--max 100] [--lighthouse 5] [--checks accessibility,seo]
  * Queues a scan for the URL, owned by the given account, and runs this worker until that scan finishes.
  */
-import { normalizeUrl } from "@a11y/shared";
+import { normalizeUrl, SCAN_CHECKS, type ScanCheck } from "@a11y/shared";
 import { config } from "./config";
 import { check, db } from "./db";
 import { scanLoop } from "./index";
@@ -17,7 +17,7 @@ const num = (name: string) => (flag(name) == null ? undefined : Number(flag(name
 const input = args.find((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
 const target = input ? normalizeUrl(input) : null;
 if (!target) {
-  console.error("Usage: npm run scan -- <url> --email <account email> [--max 100] [--lighthouse 5]");
+  console.error("Usage: npm run scan -- <url> --email <account email> [--max 100] [--lighthouse 5] [--checks accessibility,seo]");
   process.exit(1);
 }
 
@@ -41,6 +41,12 @@ if (!userId) {
 
 const maxPages = Math.min(num("max") ?? config.defaultMaxPages, config.maxPagesCap);
 const lighthouseSample = num("lighthouse") ?? config.defaultLighthouseSample;
+const checks = (flag("checks")?.split(",").map((c) => c.trim()) ?? [...SCAN_CHECKS]) as ScanCheck[];
+const unknown = checks.filter((c) => !SCAN_CHECKS.includes(c));
+if (!checks.length || unknown.length) {
+  console.error(`Invalid --checks ${unknown.join(", ")}. Choose from: ${SCAN_CHECKS.join(", ")}`);
+  process.exit(1);
+}
 
 const site = check(
   await db
@@ -53,7 +59,7 @@ const site = check(
 const scan = check(
   await db
     .from("scans")
-    .insert({ site_id: site.id, user_id: userId, start_url: target.url, max_pages: maxPages, lighthouse_sample: lighthouseSample })
+    .insert({ site_id: site.id, user_id: userId, start_url: target.url, max_pages: maxPages, lighthouse_sample: lighthouseSample, checks })
     .select()
     .single(),
   "create scan",

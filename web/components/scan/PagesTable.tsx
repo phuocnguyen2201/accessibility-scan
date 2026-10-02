@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { PageRow } from "@a11y/shared";
+import type { PageRow, ScanCheck } from "@a11y/shared";
 import { browserClient, selectAll } from "@/lib/supabase";
 import { shortPath } from "@/lib/format";
 import { Button, Card, ScoreBadge } from "../ui";
@@ -17,12 +17,12 @@ const COLUMNS = [
 const PAGE_SIZE = 100;
 
 // Sort choices for the phone layout, where there are no column headers to click.
-const MOBILE_SORTS: { value: string; label: string; key: SortKey; asc: boolean }[] = [
+const MOBILE_SORTS: { value: string; label: string; key: SortKey; asc: boolean; check?: ScanCheck }[] = [
   { value: "depth-asc", label: "Depth", key: "depth", asc: true },
-  { value: "a11y_score-asc", label: "Worst accessibility", key: "a11y_score", asc: true },
-  { value: "violation_count-desc", label: "Most issues", key: "violation_count", asc: false },
-  { value: "seo_score-asc", label: "Worst SEO", key: "seo_score", asc: true },
-  { value: "perf_score-asc", label: "Worst performance", key: "perf_score", asc: true },
+  { value: "a11y_score-asc", label: "Worst accessibility", key: "a11y_score", asc: true, check: "accessibility" },
+  { value: "violation_count-desc", label: "Most issues", key: "violation_count", asc: false, check: "accessibility" },
+  { value: "seo_score-asc", label: "Worst SEO", key: "seo_score", asc: true, check: "seo" },
+  { value: "perf_score-asc", label: "Worst performance", key: "perf_score", asc: true, check: "performance" },
   { value: "http_status-desc", label: "HTTP status", key: "http_status", asc: false },
   { value: "url-asc", label: "URL (A-Z)", key: "url", asc: true },
 ];
@@ -35,7 +35,11 @@ const STATUS_TEXT: Record<PageRow["crawl_status"], string> = {
   skipped: "Skipped",
 };
 
-export function PagesTable({ scanId, live }: { scanId: string; live: boolean }) {
+export function PagesTable({ scanId, live, checks }: { scanId: string; live: boolean; checks: ScanCheck[] }) {
+  const a11y = checks.includes("accessibility");
+  const seo = checks.includes("seo");
+  const perf = checks.includes("performance");
+  const mobileSorts = MOBILE_SORTS.filter((o) => !o.check || checks.includes(o.check));
   const [pages, setPages] = useState<Map<string, PageRow> | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -128,7 +132,7 @@ export function PagesTable({ scanId, live }: { scanId: string; live: boolean }) 
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-base sm:w-auto sm:text-sm"
           >
             <option value="all">All pages</option>
-            <option value="critical">Has critical issues</option>
+            {a11y && <option value="critical">Has critical issues</option>}
             <option value="errors">Errors / broken (4xx, 5xx)</option>
             <option value="pending">Not scanned yet</option>
           </select>
@@ -141,15 +145,15 @@ export function PagesTable({ scanId, live }: { scanId: string; live: boolean }) 
             id="page-sort"
             value={`${sort.key}-${sort.asc ? "asc" : "desc"}`}
             onChange={(e) => {
-              const s = MOBILE_SORTS.find((o) => o.value === e.target.value);
+              const s = mobileSorts.find((o) => o.value === e.target.value);
               if (s) setSort({ key: s.key, asc: s.asc });
             }}
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-base"
           >
-            {!MOBILE_SORTS.some((o) => o.key === sort.key && o.asc === sort.asc) && (
+            {!mobileSorts.some((o) => o.key === sort.key && o.asc === sort.asc) && (
               <option value={`${sort.key}-${sort.asc ? "asc" : "desc"}`}>Custom</option>
             )}
-            {MOBILE_SORTS.map((o) => (
+            {mobileSorts.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -177,22 +181,32 @@ export function PagesTable({ scanId, live }: { scanId: string; live: boolean }) 
               )}
               {p.title && <span className="block truncate text-xs text-slate-500">{p.title}</span>}
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
-                <span className="inline-flex items-center gap-1">
-                  A11y <ScoreBadge score={p.a11y_score} label="Accessibility" />
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  SEO <ScoreBadge score={p.seo_score} label="SEO" />
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  Perf <ScoreBadge score={p.perf_score} estimated={p.perf_estimated} label="Performance" />
-                </span>
+                {a11y && (
+                  <span className="inline-flex items-center gap-1">
+                    A11y <ScoreBadge score={p.a11y_score} label="Accessibility" />
+                  </span>
+                )}
+                {seo && (
+                  <span className="inline-flex items-center gap-1">
+                    SEO <ScoreBadge score={p.seo_score} label="SEO" />
+                  </span>
+                )}
+                {perf && (
+                  <span className="inline-flex items-center gap-1">
+                    Perf <ScoreBadge score={p.perf_score} estimated={p.perf_estimated} label="Performance" />
+                  </span>
+                )}
               </div>
               <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-slate-600">
-                <span className="tabular-nums">
-                  {p.violation_count} issues
-                  {p.critical_count > 0 && <span className="text-red-700"> ({p.critical_count} critical)</span>}
-                </span>
-                <span>·</span>
+                {a11y && (
+                  <>
+                    <span className="tabular-nums">
+                      {p.violation_count} issues
+                      {p.critical_count > 0 && <span className="text-red-700"> ({p.critical_count} critical)</span>}
+                    </span>
+                    <span>·</span>
+                  </>
+                )}
                 <span className={(p.http_status ?? 0) >= 400 ? "font-semibold text-red-700" : ""}>HTTP {p.http_status ?? "-"}</span>
                 <span>·</span>
                 <span>Depth {p.depth}</span>
@@ -212,10 +226,10 @@ export function PagesTable({ scanId, live }: { scanId: string; live: boolean }) 
               {header("url", "Page")}
               {header("depth", "Depth", "text-right")}
               {header("http_status", "HTTP", "text-right")}
-              {header("a11y_score", "A11y", "text-center")}
-              {header("seo_score", "SEO", "text-center")}
-              {header("perf_score", "Perf", "text-center")}
-              {header("violation_count", "Issues", "text-right")}
+              {a11y && header("a11y_score", "A11y", "text-center")}
+              {seo && header("seo_score", "SEO", "text-center")}
+              {perf && header("perf_score", "Perf", "text-center")}
+              {a11y && header("violation_count", "Issues", "text-right")}
               <th scope="col" className="px-3 py-2 text-left font-medium">
                 Status
               </th>
@@ -240,19 +254,27 @@ export function PagesTable({ scanId, live }: { scanId: string; live: boolean }) 
                 <td className={`px-3 py-2 text-right tabular-nums ${(p.http_status ?? 0) >= 400 ? "font-semibold text-red-700" : ""}`}>
                   {p.http_status ?? "-"}
                 </td>
-                <td className="px-3 py-2 text-center">
-                  <ScoreBadge score={p.a11y_score} label="Accessibility" />
-                </td>
-                <td className="px-3 py-2 text-center">
-                  <ScoreBadge score={p.seo_score} label="SEO" />
-                </td>
-                <td className="px-3 py-2 text-center">
-                  <ScoreBadge score={p.perf_score} estimated={p.perf_estimated} label="Performance" />
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {p.violation_count}
-                  {p.critical_count > 0 && <span className="ml-1 text-xs text-red-700">({p.critical_count} critical)</span>}
-                </td>
+                {a11y && (
+                  <td className="px-3 py-2 text-center">
+                    <ScoreBadge score={p.a11y_score} label="Accessibility" />
+                  </td>
+                )}
+                {seo && (
+                  <td className="px-3 py-2 text-center">
+                    <ScoreBadge score={p.seo_score} label="SEO" />
+                  </td>
+                )}
+                {perf && (
+                  <td className="px-3 py-2 text-center">
+                    <ScoreBadge score={p.perf_score} estimated={p.perf_estimated} label="Performance" />
+                  </td>
+                )}
+                {a11y && (
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {p.violation_count}
+                    {p.critical_count > 0 && <span className="ml-1 text-xs text-red-700">({p.critical_count} critical)</span>}
+                  </td>
+                )}
                 <td className="px-3 py-2 text-xs text-slate-600" title={p.error ?? undefined}>
                   {STATUS_TEXT[p.crawl_status]}
                 </td>
@@ -268,7 +290,7 @@ export function PagesTable({ scanId, live }: { scanId: string; live: boolean }) 
           </Button>
         </div>
       )}
-      <p className="mt-3 text-xs text-slate-500">* Performance estimated from page timings; open a page to run Lighthouse.</p>
+      {perf && <p className="mt-3 text-xs text-slate-500">* Performance estimated from page timings; open a page to run Lighthouse.</p>}
     </Card>
   );
 }

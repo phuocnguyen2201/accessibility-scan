@@ -1,5 +1,5 @@
 import type { Browser, BrowserContext, Page } from "playwright";
-import { isCrawlable, normalizeUrl, type NormalizedUrl, type PageRow, type Scan } from "@a11y/shared";
+import { isCrawlable, normalizeUrl, SCAN_CHECKS, type NormalizedUrl, type PageRow, type Scan, type ScanCheck } from "@a11y/shared";
 import { config, sleep } from "./config";
 import { check, claimNextPage, db, enqueuePages, touchScan, updatePage, updateScan } from "./db";
 import { isAllowed, loadRobots, loadSitemapUrls, type Robots } from "./discover";
@@ -12,6 +12,7 @@ interface CrawlContext {
   scan: Scan;
   siteHost: string;
   robots: Robots;
+  checks: ScanCheck[];
 }
 
 function crawlableLinks(ctx: CrawlContext, hrefs: string[]): NormalizedUrl[] {
@@ -38,7 +39,7 @@ async function processPage(ctx: CrawlContext, row: PageRow, page: Page) {
       return;
     }
 
-    const result = await scanPage(page, row.url);
+    const result = await scanPage(page, row.url, ctx.checks);
 
     if (result.kind !== "done") {
       await updatePage(row.id, {
@@ -80,7 +81,7 @@ async function processPage(ctx: CrawlContext, row: PageRow, page: Page) {
       a11y_passes: result.a11yPasses,
       seo_score: result.seoScore,
       perf_score: result.perfScore,
-      perf_estimated: true,
+      perf_estimated: result.perfScore != null,
       violation_count: result.violations.reduce((s, v) => s + v.node_count, 0),
       critical_count: result.violations.filter((v) => v.impact === "critical").reduce((s, v) => s + v.node_count, 0),
       perf_metrics: result.perfMetrics,
@@ -89,7 +90,9 @@ async function processPage(ctx: CrawlContext, row: PageRow, page: Page) {
       scanned_at: now(),
     });
     // Hide issues the user already marked as false positives on this site (recomputes counts + score).
-    check(await db.rpc("apply_dismissals", { p_page_ids: [row.id] }), "apply dismissals");
+    if (ctx.checks.includes("accessibility")) {
+      check(await db.rpc("apply_dismissals", { p_page_ids: [row.id] }), "apply dismissals");
+    }
 
     await enqueueChunked(ctx.scan.id, row.id, row.depth + 1, crawlableLinks(ctx, result.links));
   } catch (err) {
@@ -176,11 +179,13 @@ export async function runScan(scan: Scan, browser: Browser) {
   const startUrl = new URL(start.url);
   if (config.blockPrivateIps) await assertPublicHost(startUrl.hostname);
 
-  log(scan, `starting ${start.url} (max ${scan.max_pages} pages, lighthouse sample ${scan.lighthouse_sample})`);
+  // Scans created before the checks column existed ran everything.
+  const checks = scan.checks?.length ? scan.checks : [...SCAN_CHECKS];
+  log(scan, `starting ${start.url} (max ${scan.max_pages} pages, lighthouse sample ${scan.lighthouse_sample}, checks ${checks.join(", ")})`);
   await updateScan(scan.id, { phase: "crawling" });
 
   const robots = await loadRobots(startUrl.origin);
-  const ctx: CrawlContext = { scan, siteHost: start.host, robots };
+  const ctx: CrawlContext = { scan, siteHost: start.host, robots, checks };
 
   // Seeding is idempotent (unique per scan), so a resumed scan just skips this.
   await enqueuePages(scan.id, null, 0, [{ url: start.url, key: start.key }]);

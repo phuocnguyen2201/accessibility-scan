@@ -6,6 +6,7 @@ import {
   estimatePerfScore,
   runSeoChecks,
   type Impact,
+  type ScanCheck,
   type PerfMetrics,
   type SeoRaw,
   type ViolationNode,
@@ -35,12 +36,13 @@ export type ScanResult =
       httpStatus: number | null;
       contentType: string | null;
       title: string | null;
-      a11yScore: number;
-      a11yPasses: number;
-      seoScore: number;
-      perfScore: number;
-      perfMetrics: PerfMetrics;
-      seoChecks: ReturnType<typeof runSeoChecks>;
+      // null when that check wasn't selected for the scan
+      a11yScore: number | null;
+      a11yPasses: number | null;
+      seoScore: number | null;
+      perfScore: number | null;
+      perfMetrics: PerfMetrics | null;
+      seoChecks: ReturnType<typeof runSeoChecks> | null;
       violations: ViolationInsert[];
       links: string[];
     };
@@ -83,7 +85,7 @@ const EXTRACT_SCRIPT = `(() => {
   };
 })()`;
 
-export async function scanPage(page: Page, url: string): Promise<ScanResult> {
+export async function scanPage(page: Page, url: string, checks: ScanCheck[]): Promise<ScanResult> {
   const response = await page.goto(url, { waitUntil: "load", timeout: config.pageTimeoutMs });
   // Give client-rendered pages a moment to settle, but don't wait forever on chatty sites.
   await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
@@ -99,14 +101,19 @@ export async function scanPage(page: Page, url: string): Promise<ScanResult> {
     return { kind: "skipped", httpStatus, contentType, finalUrl, reason: `Not HTML (${contentType})` };
   }
 
-  const axe = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
+  const runA11y = checks.includes("accessibility");
+  const runSeo = checks.includes("seo");
+  const runPerf = checks.includes("performance");
 
+  const axe = runA11y ? await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze() : null;
+
+  // Always extracted: the links drive the crawl, and the title labels the page.
   const { perf, seo, links } = await page.evaluate<Extracted>(EXTRACT_SCRIPT);
 
   const seoRaw: SeoRaw = { ...seo, httpStatus };
-  const seoChecks = runSeoChecks(seoRaw);
+  const seoChecks = runSeo ? runSeoChecks(seoRaw) : null;
 
-  const violations: ViolationInsert[] = axe.violations.map((v) => ({
+  const violations: ViolationInsert[] = (axe?.violations ?? []).map((v) => ({
     rule_id: v.id,
     impact: (v.impact as Impact | null | undefined) ?? null,
     description: v.description,
@@ -127,14 +134,16 @@ export async function scanPage(page: Page, url: string): Promise<ScanResult> {
     httpStatus,
     contentType,
     title: seo.title,
-    a11yPasses: axe.passes.length,
-    a11yScore: computeA11yScore(
-      axe.passes.length,
-      violations.map((v) => v.impact),
-    ),
-    seoScore: computeSeoScore(seoChecks),
-    perfScore: estimatePerfScore(perf),
-    perfMetrics: perf,
+    a11yPasses: axe ? axe.passes.length : null,
+    a11yScore: axe
+      ? computeA11yScore(
+          axe.passes.length,
+          violations.map((v) => v.impact),
+        )
+      : null,
+    seoScore: seoChecks ? computeSeoScore(seoChecks) : null,
+    perfScore: runPerf ? estimatePerfScore(perf) : null,
+    perfMetrics: runPerf ? perf : null,
     seoChecks,
     violations,
     links: [...new Set(links)],

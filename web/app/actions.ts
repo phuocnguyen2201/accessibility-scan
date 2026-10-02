@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { normalizeUrl, type Scan, type Site } from "@a11y/shared";
+import { normalizeUrl, SCAN_CHECKS, type Scan, type Site } from "@a11y/shared";
 import { adminClient, guestLimits, limits } from "@/lib/supabase-admin";
 import { isGuest, minutesUntil, nextGuestScanAt, requesterIpHash } from "@/lib/guest";
 import { currentUser, serverClient } from "@/lib/supabase-server";
@@ -42,12 +42,17 @@ const startSchema = z.object({
   url: z.string().min(1),
   maxPages: z.coerce.number().int().min(1),
   lighthouseSample: z.coerce.number().int().min(0),
+  checks: z.array(z.enum(SCAN_CHECKS)).min(1, "Choose at least one check"),
 });
 
 /** Creates the user's site if needed and queues a new scan. Re-scans add a new scan to the site's history. */
 export async function startScan(input: z.input<typeof startSchema>): Promise<{ ok: true; scanId: string } | { ok: false; error: string }> {
   const parsed = startSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "Invalid scan options" };
+  if (!parsed.success) {
+    const checksIssue = parsed.error.issues.find((i) => i.path[0] === "checks");
+    return { ok: false, error: checksIssue ? "Choose at least one check to run" : "Invalid scan options" };
+  }
+  const checks = [...new Set(parsed.data.checks)];
   const target = normalizeUrl(parsed.data.url);
   if (!target) return { ok: false, error: "Please enter a valid http(s) URL" };
   const user = await currentUser();
@@ -56,6 +61,9 @@ export async function startScan(input: z.input<typeof startSchema>): Promise<{ o
   const guest = isGuest(user);
   const maxPages = Math.min(parsed.data.maxPages, guest ? guestLimits.maxPages : limits.maxPagesCap);
   const lighthouseSample = Math.min(parsed.data.lighthouseSample, maxPages, guest ? guestLimits.lighthouseSample : Infinity);
+  if (lighthouseSample === 0 && checks.length === 1 && checks[0] === "best-practices") {
+    return { ok: false, error: "Best practices comes from Lighthouse. Set a Lighthouse sample above 0, or choose another check." };
+  }
   const db = adminClient();
 
   const { data: site, error: siteError } = await db
@@ -95,6 +103,7 @@ export async function startScan(input: z.input<typeof startSchema>): Promise<{ o
       start_url: target.url,
       max_pages: maxPages,
       lighthouse_sample: lighthouseSample,
+      checks,
       requester_ip_hash: ipHash,
     })
     .select("id")

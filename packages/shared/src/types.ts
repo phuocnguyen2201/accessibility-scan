@@ -1,7 +1,17 @@
 export type Impact = "critical" | "serious" | "moderate" | "minor";
 export const IMPACTS: Impact[] = ["critical", "serious", "moderate", "minor"];
 
-export type ScanStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+/** What a scan audits. "best-practices" only comes from Lighthouse, so it needs a Lighthouse sample. */
+export const SCAN_CHECKS = ["accessibility", "seo", "performance", "best-practices"] as const;
+export type ScanCheck = (typeof SCAN_CHECKS)[number];
+export const SCAN_CHECK_LABELS: Record<ScanCheck, string> = {
+  accessibility: "Accessibility",
+  seo: "SEO",
+  performance: "Performance",
+  "best-practices": "Best practices",
+};
+
+export type ScanStatus ="queued" | "running" | "completed" | "failed" | "cancelled";
 export type CrawlStatus = "pending" | "scanning" | "done" | "error" | "skipped";
 export type LighthouseStatus = "none" | "queued" | "running" | "done" | "failed";
 
@@ -80,6 +90,7 @@ export interface Scan {
   phase: "crawling" | "lighthouse" | "finalizing" | null;
   max_pages: number;
   lighthouse_sample: number;
+  checks: ScanCheck[];
   pages_found: number;
   pages_scanned: number;
   created_at: string;

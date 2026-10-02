@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import type { Scan } from "@a11y/shared";
+import { SCAN_CHECK_LABELS, SCAN_CHECKS, type Scan } from "@a11y/shared";
 import { cancelScan, startScan } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import { browserClient } from "@/lib/supabase";
@@ -14,7 +14,7 @@ import { PagesTable } from "./PagesTable";
 type ScanWithSite = Scan & { site: { display_url: string; normalized_url: string } };
 
 const PHASE_LABEL: Record<string, string> = {
-  crawling: "Crawling and checking accessibility",
+  crawling: "Crawling and checking pages",
   lighthouse: "Running Lighthouse on sampled pages",
   finalizing: "Computing summary",
 };
@@ -24,6 +24,7 @@ export function ScanView({ initialScan, tab }: { initialScan: ScanWithSite; tab:
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const live = scan.status === "queued" || scan.status === "running";
+  const checks = scan.checks?.length ? scan.checks : [...SCAN_CHECKS];
 
   useEffect(() => {
     const db = browserClient();
@@ -40,7 +41,7 @@ export function ScanView({ initialScan, tab }: { initialScan: ScanWithSite; tab:
 
   const rescan = () =>
     startTransition(async () => {
-      const res = await startScan({ url: scan.site.display_url, maxPages: scan.max_pages, lighthouseSample: scan.lighthouse_sample });
+      const res = await startScan({ url: scan.site.display_url, maxPages: scan.max_pages, lighthouseSample: scan.lighthouse_sample, checks });
       if (res.ok) router.push(`/scans/${res.scanId}`);
     });
 
@@ -57,6 +58,7 @@ export function ScanView({ initialScan, tab }: { initialScan: ScanWithSite; tab:
             <span>Started {formatDate(scan.started_at ?? scan.created_at)}</span>
             <span>· Duration {formatDuration(scan.started_at, scan.finished_at)}</span>
             <span>· Max {scan.max_pages} pages</span>
+            <span>· {checks.map((c) => SCAN_CHECK_LABELS[c]).join(", ")}</span>
           </p>
           {scan.error && <p className="mt-2 text-sm text-red-700">Error: {scan.error}</p>}
         </div>
@@ -96,7 +98,7 @@ export function ScanView({ initialScan, tab }: { initialScan: ScanWithSite; tab:
         </Link>
       </nav>
 
-      {tab === "overview" ? <Overview scan={scan} /> : <PagesTable scanId={scan.id} live={live} />}
+      {tab === "overview" ? <Overview scan={scan} checks={checks} /> : <PagesTable scanId={scan.id} live={live} checks={checks} />}
     </div>
   );
 }

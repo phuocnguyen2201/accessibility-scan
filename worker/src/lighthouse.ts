@@ -2,10 +2,19 @@ import * as chromeLauncher from "chrome-launcher";
 import lighthouse from "lighthouse";
 import desktopConfig from "lighthouse/core/config/desktop-config.js";
 import { chromium } from "playwright";
+import { SCAN_CHECKS, type ScanCheck } from "@a11y/shared";
 import { config, sleep } from "./config";
 import { check, claimNextLighthouse, db, updatePage } from "./db";
 
 const pct = (v: number | null | undefined) => (v == null ? null : Math.round(v * 100));
+
+/** Lighthouse categories to run: the ones selected for the page's scan (category ids match ScanCheck). */
+async function categoriesFor(scanId: string): Promise<ScanCheck[]> {
+  const scan = check(await db.from("scans").select("checks").eq("id", scanId).single(), "load scan checks") as {
+    checks: ScanCheck[] | null;
+  };
+  return scan.checks?.length ? scan.checks : [...SCAN_CHECKS];
+}
 
 /**
  * Runs forever: picks pages with lighthouse_status = 'queued' (scan samples and on-demand
@@ -37,6 +46,7 @@ export async function lighthouseLoop(signal: AbortSignal) {
 
       console.log(`[lighthouse] ${row.url}`);
       try {
+        const categories = await categoriesFor(row.scan_id);
         const { port } = await ensureChrome();
         const result = await lighthouse(
           row.url,
@@ -44,7 +54,7 @@ export async function lighthouseLoop(signal: AbortSignal) {
             port,
             output: "json",
             logLevel: "error",
-            onlyCategories: ["performance", "accessibility", "seo", "best-practices"],
+            onlyCategories: categories,
             maxWaitForLoad: config.pageTimeoutMs,
           },
           desktopConfig,
