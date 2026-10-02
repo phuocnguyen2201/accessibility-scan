@@ -24,10 +24,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </Link>
             {user && (
               <div className="flex items-center gap-3 text-sm">
-                <span className="hidden text-slate-600 sm:inline">{user.email}</span>
+                {user.is_anonymous ? (
+                  <>
+                    <span className="hidden text-slate-600 sm:inline">Guest</span>
+                    <Link href="/signup" className="rounded-md bg-blue-700 px-3 py-1.5 font-medium text-white hover:bg-blue-800">
+                      Create account
+                    </Link>
+                  </>
+                ) : (
+                  <span className="hidden text-slate-600 sm:inline">{user.email}</span>
+                )}
                 <form action={signOut}>
                   <button type="submit" className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-800 hover:bg-slate-50">
-                    Sign out
+                    {user.is_anonymous ? "Leave guest mode" : "Sign out"}
                   </button>
                 </form>
               </div>

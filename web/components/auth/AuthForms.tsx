@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import {
+  continueAsGuest,
   requestPasswordReset,
   resendVerification,
   signIn,
@@ -109,6 +110,22 @@ export function LoginForm({ next }: { next?: string }) {
       </form>
       {state.unconfirmedEmail && <ResendVerification email={state.unconfirmedEmail} />}
     </>
+  );
+}
+
+export function GuestForm({ next, cooldownMinutes }: { next?: string; cooldownMinutes: number }) {
+  const [state, action, pending] = useActionState(continueAsGuest, {});
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="next" value={next ?? "/"} />
+      <StateNotice state={state} />
+      <Button type="submit" variant="secondary" disabled={pending} className="w-full" aria-describedby="guest-hint">
+        {pending ? "Starting guest session..." : "Continue as guest"}
+      </Button>
+      <p id="guest-hint" className="text-center text-xs text-slate-600">
+        No account needed. Guests can start one scan every {cooldownMinutes} minutes.
+      </p>
+    </form>
   );
 }
 

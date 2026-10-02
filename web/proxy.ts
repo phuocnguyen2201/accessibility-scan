@@ -31,7 +31,8 @@ export async function proxy(request: NextRequest) {
     url.search = path === "/" ? "" : `?next=${encodeURIComponent(path + request.nextUrl.search)}`;
     return NextResponse.redirect(url);
   }
-  if (user && (path === "/login" || path === "/signup")) {
+  // Guests may still open the sign-in / sign-up pages to switch to a real account.
+  if (user && !user.is_anonymous && (path === "/login" || path === "/signup")) {
     return NextResponse.redirect(new URL("/", request.url));
   }
   return response;

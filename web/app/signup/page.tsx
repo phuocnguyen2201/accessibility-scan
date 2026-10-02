@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { AuthCard } from "@/components/auth/AuthCard";
-import { SignupForm } from "@/components/auth/AuthForms";
+import { Notice, SignupForm } from "@/components/auth/AuthForms";
+import { currentUser } from "@/lib/supabase-server";
 
 export const metadata = { title: "Create account · A11y Site Scanner" };
 
-export default function SignupPage() {
+export default async function SignupPage() {
+  const user = await currentUser();
   return (
     <AuthCard
       title="Create your account"
@@ -17,6 +19,11 @@ export default function SignupPage() {
         </>
       }
     >
+      {user?.is_anonymous && (
+        <div className="mb-4">
+          <Notice tone="info">Scans you ran as a guest stay in the guest session and aren&apos;t moved to your new account.</Notice>
+        </div>
+      )}
       <SignupForm />
     </AuthCard>
   );

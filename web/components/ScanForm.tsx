@@ -12,14 +12,18 @@ export function ScanForm({
   maxPagesCap,
   defaultMaxPages,
   defaultLighthouseSample,
+  maxLighthouseSample,
 }: {
   maxPagesCap: number;
   defaultMaxPages: number;
   defaultLighthouseSample: number;
+  /** Extra cap on the Lighthouse sample (guests). */
+  maxLighthouseSample?: number;
 }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [maxPages, setMaxPages] = useState(Math.min(defaultMaxPages, maxPagesCap));
+  const lighthouseCap = Math.min(maxPages, maxLighthouseSample ?? Infinity);
   const [lighthouseSample, setLighthouseSample] = useState(defaultLighthouseSample);
   const [error, setError] = useState<string | null>(null);
   const [existing, setExisting] = useState<Existing | null>(null);
@@ -29,8 +33,8 @@ export function ScanForm({
   const launch = () =>
     startTransition(async () => {
       const res = await startScan({ url, maxPages, lighthouseSample });
-      if (!res.ok) return setError(res.error);
       dialogRef.current?.close();
+      if (!res.ok) return setError(res.error);
       router.push(`/scans/${res.scanId}`);
     });
 
@@ -97,7 +101,7 @@ export function ScanForm({
                 aria-describedby="maxPages-hint"
               />
               <p id="maxPages-hint" className="mt-1 text-xs text-slate-600">
-                Up to {maxPagesCap}. Around 800 pages takes 10-15 minutes.
+                Up to {maxPagesCap}.{maxPagesCap >= 800 && " Around 800 pages takes 10-15 minutes."}
               </p>
             </div>
             <div>
@@ -108,9 +112,9 @@ export function ScanForm({
                 id="lhSample"
                 type="number"
                 min={0}
-                max={maxPages}
+                max={lighthouseCap}
                 value={lighthouseSample}
-                onChange={(e) => setLighthouseSample(Math.max(0, Number(e.target.value) || 0))}
+                onChange={(e) => setLighthouseSample(Math.max(0, Math.min(lighthouseCap, Number(e.target.value) || 0)))}
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
                 aria-describedby="lhSample-hint"
               />

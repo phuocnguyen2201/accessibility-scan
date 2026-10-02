@@ -88,6 +88,7 @@ The home page lists your previous scans. Each row opens that scan's results, and
 
 - Email + password sign-up with **email verification**, resend-verification and **password reset** flows.
 - Every page except the auth pages requires sign-in; you're returned to the original page afterwards.
+- **Guest mode**: *Continue as guest* on the sign-in page starts a Supabase anonymous session, so no account is needed. Guests can start **one scan per hour** (`GUEST_SCAN_COOLDOWN_MINUTES`), checked per guest and per client IP (stored only as a hash), with smaller limits (`GUEST_MAX_PAGES`, default 100; `GUEST_LIGHTHOUSE_SAMPLE`, default 5). Requires *Allow anonymous sign-ins* in Supabase → Authentication → Sign In / Providers.
 - **Results are private**: users only see their own sites and scans, enforced by database RLS, not just the UI. Duplicate detection is per account, so two users can each scan `example.com`.
 
 ### CLI

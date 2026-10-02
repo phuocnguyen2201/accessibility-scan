@@ -51,6 +51,14 @@ export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
   redirect(safeNext(form.get("next")));
 }
 
+/** Signs in as a guest (Supabase anonymous user). Guests are rate-limited in startScan. */
+export async function continueAsGuest(_: AuthState, form: FormData): Promise<AuthState> {
+  const supabase = await serverClient();
+  const { error } = await supabase.auth.signInAnonymously();
+  if (error) return { error: "Guest scanning is unavailable right now. Please create an account or try again later." };
+  redirect(safeNext(form.get("next")));
+}
+
 export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
   const parsed = z
     .object({ email, password, confirm: z.string() })

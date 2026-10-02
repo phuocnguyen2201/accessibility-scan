@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { normalizeUrl, type Scan, type Site } from "@a11y/shared";
-import { adminClient, limits } from "@/lib/supabase-admin";
+import { adminClient, guestLimits, limits } from "@/lib/supabase-admin";
+import { isGuest, minutesUntil, nextGuestScanAt, requesterIpHash } from "@/lib/guest";
 import { currentUser, serverClient } from "@/lib/supabase-server";
 
 const NOT_SIGNED_IN = { ok: false as const, error: "Your session has expired. Please sign in again." };
@@ -52,8 +53,9 @@ export async function startScan(input: z.input<typeof startSchema>): Promise<{ o
   const user = await currentUser();
   if (!user) return NOT_SIGNED_IN;
 
-  const maxPages = Math.min(parsed.data.maxPages, limits.maxPagesCap);
-  const lighthouseSample = Math.min(parsed.data.lighthouseSample, maxPages);
+  const guest = isGuest(user);
+  const maxPages = Math.min(parsed.data.maxPages, guest ? guestLimits.maxPages : limits.maxPagesCap);
+  const lighthouseSample = Math.min(parsed.data.lighthouseSample, maxPages, guest ? guestLimits.lighthouseSample : Infinity);
   const db = adminClient();
 
   const { data: site, error: siteError } = await db
@@ -73,9 +75,28 @@ export async function startScan(input: z.input<typeof startSchema>): Promise<{ o
     .maybeSingle();
   if (active) return { ok: true, scanId: active.id };
 
+  // Guests get one scan per cooldown window, per guest account and per network.
+  const ipHash = guest ? await requesterIpHash() : null;
+  if (ipHash) {
+    const next = await nextGuestScanAt(user, ipHash);
+    if (next) {
+      return {
+        ok: false,
+        error: `Guests can start one scan every ${guestLimits.cooldownMinutes} minutes. Try again in ${minutesUntil(next)}, or create a free account to scan without waiting.`,
+      };
+    }
+  }
+
   const { data: scan, error } = await db
     .from("scans")
-    .insert({ site_id: site.id, user_id: user.id, start_url: target.url, max_pages: maxPages, lighthouse_sample: lighthouseSample })
+    .insert({
+      site_id: site.id,
+      user_id: user.id,
+      start_url: target.url,
+      max_pages: maxPages,
+      lighthouse_sample: lighthouseSample,
+      requester_ip_hash: ipHash,
+    })
     .select("id")
     .single();
   if (error) return { ok: false, error: error.message };
