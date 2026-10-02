@@ -99,11 +99,11 @@ export function Overview({ scan }: { scan: Scan }) {
                       width={narrow ? 110 : 170}
                       tickFormatter={(v: string) => (narrow && v.length > 16 ? `${v.slice(0, 15)}…` : v)}
                       tickLine={false}
-                      axisLine={{ stroke: "#c3c2b7" }}
-                      tick={{ fill: "#52514e", fontSize: 12 }}
+                      axisLine={{ stroke: "var(--chart-axis-line)" }}
+                      tick={{ fill: "var(--chart-axis-text)", fontSize: 12 }}
                     />
                     <Tooltip
-                      cursor={{ fill: "rgba(11,11,11,0.04)" }}
+                      cursor={{ fill: "var(--chart-cursor)" }}
                       content={({ active, payload }) => {
                         const d = active && (payload?.[0]?.payload as TopIssue | undefined);
                         if (!d) return null;
@@ -118,7 +118,7 @@ export function Overview({ scan }: { scan: Scan }) {
                       }}
                     />
                     <Bar dataKey="pages" fill={SERIES_1} barSize={20} radius={[0, 4, 4, 0]} isAnimationActive={false}>
-                      <LabelList dataKey="pages" position="right" fill="#0b0b0b" fontSize={12} />
+                      <LabelList dataKey="pages" position="right" fill="var(--chart-label)" fontSize={12} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>

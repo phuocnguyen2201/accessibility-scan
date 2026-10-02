@@ -118,7 +118,7 @@ function Occurrences({ violationId, total }: { violationId: string; total: numbe
             </div>
             <div>
               <div className="text-xs font-medium text-slate-700">HTML</div>
-              <pre className="mt-0.5 overflow-x-auto whitespace-pre-wrap break-all rounded bg-slate-900 p-2 text-xs text-slate-100">{current.html}</pre>
+              <pre className="mt-0.5 overflow-x-auto whitespace-pre-wrap break-all rounded code-block p-2 text-xs">{current.html}</pre>
             </div>
           </>
         )}

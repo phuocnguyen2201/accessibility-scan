@@ -1,17 +1,102 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   color-scheme: light;
+  --page-bg: #f8fafc;
+  --page-fg: #0f172a;
+  --focus-ring: #2563eb;
+  --chart-axis-line: #c3c2b7;
+  --chart-axis-text: #52514e;
+  --chart-label: #0b0b0b;
+  --chart-cursor: rgba(11, 11, 11, 0.04);
+  --code-bg: #0f172a;
+  --code-fg: #f1f5f9;
 }
 
+/*
+ * Dark theme: the components use Tailwind's palette classes directly, so rather than
+ * touching every class we re-map the palette variables (light shades become dark
+ * surfaces, dark shades become light text). Solid, white-text backgrounds are pinned
+ * back to their original values below.
+ */
+.dark {
+  color-scheme: dark;
+  --page-bg: #020617;
+  --page-fg: #f1f5f9;
+  --focus-ring: #60a5fa;
+  --chart-axis-line: #475569;
+  --chart-axis-text: #cbd5e1;
+  --chart-label: #f1f5f9;
+  --chart-cursor: rgba(241, 245, 249, 0.08);
+  --code-bg: #020617;
+  --code-fg: #e2e8f0;
+
+  --color-slate-50: #162033;
+  --color-slate-100: #1e293b;
+  --color-slate-200: #334155;
+  --color-slate-300: #475569;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #cbd5e1;
+  --color-slate-700: #cbd5e1;
+  --color-slate-800: #e2e8f0;
+  --color-slate-900: #f1f5f9;
+
+  --color-red-50: #2a1215;
+  --color-red-100: #4c1d1d;
+  --color-red-200: #7f1d1d;
+  --color-red-300: #991b1b;
+  --color-red-700: #fca5a5;
+  --color-red-800: #fecaca;
+
+  --color-green-50: #0f2a1d;
+  --color-green-100: #14532d;
+  --color-green-200: #166534;
+  --color-green-700: #86efac;
+  --color-green-800: #bbf7d0;
+
+  --color-amber-50: #2a1d08;
+  --color-amber-100: #422006;
+  --color-amber-200: #78350f;
+  --color-amber-700: #fcd34d;
+  --color-amber-900: #fef3c7;
+  --color-amber-950: #fffbeb;
+
+  --color-blue-50: #0f1e3a;
+  --color-blue-100: #172554;
+  --color-blue-200: #1e3a8a;
+  --color-blue-700: #93c5fd;
+  --color-blue-800: #bfdbfe;
+  --color-blue-900: #dbeafe;
+}
+
+.dark .bg-white,
+.dark .focus\:bg-white:focus {
+  background-color: #0f172a;
+}
+
+/* Solid backgrounds that carry white text keep their original colour. */
+.dark .bg-blue-600 { background-color: #2563eb; }
+.dark .bg-blue-700 { background-color: #1d4ed8; }
+.dark .hover\:bg-blue-800:hover { background-color: #1e40af; }
+.dark .bg-red-700 { background-color: #b91c1c; }
+.dark .bg-orange-600 { background-color: #ea580c; }
+
 body {
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--page-bg);
+  color: var(--page-fg);
+}
+
+.code-block {
+  background: var(--code-bg);
+  color: var(--code-fg);
 }
 
 /* Visible keyboard focus everywhere - this is an accessibility tool after all. */
 :focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
