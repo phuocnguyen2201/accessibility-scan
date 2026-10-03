@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Mail } from "lucide-react";
 import { SCAN_CHECK_LABELS, SCAN_CHECKS, type ScanCheck } from "@a11y/shared";
 import { checkSite, startScan, type CheckResult } from "@/app/actions";
 import { formatDate } from "@/lib/format";
@@ -112,21 +113,28 @@ export function ScanForm({
         </fieldset>
 
         {notifyEmail && (
-          <div className="mt-4">
-            <label className="inline-flex items-start gap-2 text-sm text-slate-800">
-              <input
-                type="checkbox"
-                checked={notify}
-                onChange={(e) => setNotify(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-slate-300"
-                aria-describedby="notify-hint"
-              />
-              <span>Email me the report when the scan finishes</span>
-            </label>
-            <p id="notify-hint" className="ml-6 mt-0.5 break-all text-xs text-slate-600">
-              PDF, Excel and Markdown for AI agents, sent to {notifyEmail}.
-            </p>
-          </div>
+          <label
+            className={`mt-4 flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${
+              notify ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={notify}
+              onChange={(e) => setNotify(e.target.checked)}
+              className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300"
+              aria-describedby="notify-hint"
+            />
+            <Mail className={`mt-0.5 h-5 w-5 shrink-0 ${notify ? "text-blue-700" : "text-slate-500"}`} aria-hidden="true" />
+            <span className="min-w-0">
+              <span className={`block text-sm font-semibold ${notify ? "text-blue-900" : "text-slate-800"}`}>
+                Email me the report when the scan finishes
+              </span>
+              <span id="notify-hint" className="mt-0.5 block break-all text-xs text-slate-600 sm:text-sm">
+                PDF, Excel and Markdown for AI agents, sent to {notifyEmail}.
+              </span>
+            </span>
+          </label>
         )}
 
         <details className="mt-4">

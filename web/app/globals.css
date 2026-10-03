@@ -103,3 +103,11 @@ body {
 dialog::backdrop {
   background: rgb(15 23 42 / 0.5);
 }
+
+/* Desktop: no paragraph smaller than 14px. Unlayered, so it wins over Tailwind's text-xs utility. */
+@media (min-width: 40rem) {
+  p.text-xs {
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+}
