@@ -12,6 +12,10 @@ export const limits = {
   maxPagesCap: Number(process.env.MAX_PAGES_CAP) || 800,
   defaultMaxPages: Number(process.env.DEFAULT_MAX_PAGES) || 800,
   defaultLighthouseSample: Number(process.env.DEFAULT_LIGHTHOUSE_SAMPLE) || 50,
+  /** Scans a signed-in user may start per rolling 24 hours (guests have their own cooldown). */
+  dailyScans: Number(process.env.DAILY_SCAN_LIMIT) || 15,
+  /** Minimum gap between on-demand Lighthouse runs on the same page. */
+  lighthouseCooldownMinutes: Number(process.env.LIGHTHOUSE_COOLDOWN_MINUTES) || 10,
 };
 
 /** Limits for guests (anonymous users): one scan per cooldown window, smaller scans. */

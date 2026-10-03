@@ -9,6 +9,7 @@ import { Button } from "./ui";
 
 export function LighthouseButton({ pageId, status: initial }: { pageId: string; status: LighthouseStatus }) {
   const [status, setStatus] = useState(initial);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const busy = status === "queued" || status === "running";
@@ -31,14 +32,23 @@ export function LighthouseButton({ pageId, status: initial }: { pageId: string; 
 
   return (
     <div className="flex items-center gap-2" aria-live="polite">
-      {status === "failed" && <span className="text-xs text-red-700">Last run failed</span>}
+      {error ? (
+        <span className="text-xs text-red-700">{error}</span>
+      ) : (
+        status === "failed" && <span className="text-xs text-red-700">Last run failed</span>
+      )}
       <Button
         variant="secondary"
         disabled={busy || pending}
         onClick={() =>
           startTransition(async () => {
-            await requestLighthouse(pageId);
-            setStatus("queued");
+            const result = await requestLighthouse(pageId);
+            if (result.ok) {
+              setError(null);
+              setStatus("queued");
+            } else {
+              setError(result.error);
+            }
           })
         }
       >
