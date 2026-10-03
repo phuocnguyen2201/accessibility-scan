@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { IMPACTS, SCAN_CHECKS, type Dismissal, type LighthouseRow, type PageRow, type ScanCheck } from "@a11y/shared";
+import { IMPACTS, SCAN_CHECKS, SEO_CHECK_FIXES, splitLinks, type Dismissal, type LighthouseAudit, type LighthouseRow, type PageRow, type ScanCheck } from "@a11y/shared";
 import { FalsePositiveButton, RestoreButton } from "@/components/FalsePositive";
 import { LighthouseButton } from "@/components/LighthouseButton";
 import { Card, StatCard } from "@/components/ui";
@@ -154,6 +154,10 @@ export default async function PageDetail({ params }: { params: Promise<{ scanId:
               <Metric label="Requests" value={p.perf_metrics.requestCount ?? "-"} />
             </dl>
           )}
+          {lh?.audits && lh.audits.length > 0 && <LighthouseSuggestions audits={lh.audits} />}
+          {lh && lh.audits == null && (
+            <p className="mt-4 border-t border-slate-100 pt-4 text-xs text-slate-600">Run Lighthouse again to get its suggestions for this page.</p>
+          )}
         </Card>
 
         {seo && (
@@ -169,6 +173,19 @@ export default async function PageDetail({ params }: { params: Promise<{ scanId:
                       <span className="font-medium text-slate-900">{c.label}</span>
                       <span className="sr-only">{c.passed ? " - passed" : " - failed"}</span>
                       <div className="break-all text-xs text-slate-600">{c.detail}</div>
+                      {!c.passed && SEO_CHECK_FIXES[c.id] && (
+                        <p className="mt-1 text-xs text-slate-800">
+                          <span className="font-medium">How to fix:</span> {SEO_CHECK_FIXES[c.id].fix}
+                          {SEO_CHECK_FIXES[c.id].url && (
+                            <>
+                              {" "}
+                              <a href={SEO_CHECK_FIXES[c.id].url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                                Learn more<span className="sr-only"> about {c.label} (opens in a new tab)</span>
+                              </a>
+                            </>
+                          )}
+                        </p>
+                      )}
                     </div>
                   </li>
                 ))}
@@ -189,6 +206,44 @@ const VIOLATION_COLUMNS =
 type ViolationWithDismissal = ViolationSummary & {
   dismissal: Pick<Dismissal, "id" | "page_key" | "reason" | "created_at"> | null;
 };
+
+function LighthouseSuggestions({ audits }: { audits: LighthouseAudit[] }) {
+  return (
+    <div className="mt-4 border-t border-slate-100 pt-4">
+      <h3 className="text-sm font-semibold text-slate-900">Lighthouse suggestions ({audits.length})</h3>
+      <ul className="mt-2 space-y-3 text-sm">
+        {audits.map((a) => {
+          const { text, url, label } = splitLinks(a.description);
+          const savings = [a.savingsMs ? `${a.savingsMs} ms` : null, a.savingsBytes ? formatBytes(a.savingsBytes) : null].filter(Boolean).join(", ");
+          return (
+            <li key={a.id}>
+              <div className="font-medium text-slate-900">
+                {a.title}
+                {a.displayValue && <span className="font-normal text-slate-600"> · {a.displayValue}</span>}
+              </div>
+              <div className="text-xs text-slate-600">
+                {a.category}
+                {savings && ` · est. savings ${savings}`}
+              </div>
+              <p className="mt-1 text-xs text-slate-800">
+                {text}
+                {url && (
+                  <>
+                    {" "}
+                    <a href={url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                      {label ?? "Learn more"}
+                      <span className="sr-only"> (opens in a new tab)</span>
+                    </a>
+                  </>
+                )}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 function Metric({ label, value }: { label: string; value: React.ReactNode }) {
   return (

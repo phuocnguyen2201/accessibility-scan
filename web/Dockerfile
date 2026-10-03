@@ -2,6 +2,7 @@ FROM node:24-slim
 WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/shared packages/shared
+COPY packages/report packages/report
 COPY web web
 RUN npm ci --workspace web --include-workspace-root
 ARG NEXT_PUBLIC_SUPABASE_URL

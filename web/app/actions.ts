@@ -43,6 +43,8 @@ const startSchema = z.object({
   maxPages: z.coerce.number().int().min(1),
   lighthouseSample: z.coerce.number().int().min(0),
   checks: z.array(z.enum(SCAN_CHECKS)).min(1, "Choose at least one check"),
+  /** Email the reports when the scan completes. Ignored for guests, who have no email address. */
+  notify: z.boolean().optional(),
 });
 
 /** Creates the user's site if needed and queues a new scan. Re-scans add a new scan to the site's history. */
@@ -104,6 +106,7 @@ export async function startScan(input: z.input<typeof startSchema>): Promise<{ o
       max_pages: maxPages,
       lighthouse_sample: lighthouseSample,
       checks,
+      notify_email: !!parsed.data.notify && !guest && !!user.email,
       requester_ip_hash: ipHash,
     })
     .select("id")

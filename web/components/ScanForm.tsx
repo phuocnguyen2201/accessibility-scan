@@ -14,12 +14,15 @@ export function ScanForm({
   defaultMaxPages,
   defaultLighthouseSample,
   maxLighthouseSample,
+  notifyEmail,
 }: {
   maxPagesCap: number;
   defaultMaxPages: number;
   defaultLighthouseSample: number;
   /** Extra cap on the Lighthouse sample (guests). */
   maxLighthouseSample?: number;
+  /** Where the finished reports can be emailed; null for guests, who can't get them. */
+  notifyEmail: string | null;
 }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
@@ -29,6 +32,7 @@ export function ScanForm({
   const [checks, setChecks] = useState<ScanCheck[]>([...SCAN_CHECKS]);
   const toggleCheck = (c: ScanCheck, on: boolean) =>
     setChecks((prev) => SCAN_CHECKS.filter((x) => (x === c ? on : prev.includes(x))));
+  const [notify, setNotify] = useState(!!notifyEmail);
   const [error, setError] = useState<string | null>(null);
   const [existing, setExisting] = useState<Existing | null>(null);
   const [pending, startTransition] = useTransition();
@@ -36,7 +40,7 @@ export function ScanForm({
 
   const launch = () =>
     startTransition(async () => {
-      const res = await startScan({ url, maxPages, lighthouseSample, checks });
+      const res = await startScan({ url, maxPages, lighthouseSample, checks, notify: !!notifyEmail && notify });
       dialogRef.current?.close();
       if (!res.ok) return setError(res.error);
       router.push(`/scans/${res.scanId}`);
@@ -106,6 +110,24 @@ export function ScanForm({
             {checks.length ? "Best practices only runs on the Lighthouse sample." : "Choose at least one check."}
           </p>
         </fieldset>
+
+        {notifyEmail && (
+          <div className="mt-4">
+            <label className="inline-flex items-start gap-2 text-sm text-slate-800">
+              <input
+                type="checkbox"
+                checked={notify}
+                onChange={(e) => setNotify(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                aria-describedby="notify-hint"
+              />
+              <span>Email me the report when the scan finishes</span>
+            </label>
+            <p id="notify-hint" className="ml-6 mt-0.5 break-all text-xs text-slate-600">
+              PDF, Excel and Markdown for AI agents, sent to {notifyEmail}.
+            </p>
+          </div>
+        )}
 
         <details className="mt-4">
           <summary className="cursor-pointer text-sm text-slate-700">Advanced options</summary>

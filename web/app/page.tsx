@@ -44,9 +44,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
             defaultMaxPages={guest ? guestLimits.maxPages : limits.defaultMaxPages}
             defaultLighthouseSample={guest ? guestLimits.lighthouseSample : limits.defaultLighthouseSample}
             maxLighthouseSample={guest ? guestLimits.lighthouseSample : undefined}
+            notifyEmail={guest ? null : (user?.email ?? null)}
           />
         </div>
-        <HistoryList />
+        <HistoryList canExport={!guest} />
       </div>
     </>
   );

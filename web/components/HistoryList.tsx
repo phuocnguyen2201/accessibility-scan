@@ -10,7 +10,8 @@ import { Card, ScoreBadge, StatusBadge } from "./ui";
 
 type HistoryRow = Scan & { site: { display_url: string; normalized_url: string } };
 
-export function HistoryList() {
+/** canExport: show report downloads in each row menu (registered users only). */
+export function HistoryList({ canExport }: { canExport: boolean }) {
   const [rows, setRows] = useState<HistoryRow[] | null>(null);
   const [query, setQuery] = useState("");
 
@@ -85,6 +86,7 @@ export function HistoryList() {
                 siteLabel={s.site.normalized_url}
                 createdAt={s.created_at}
                 status={s.status}
+                canExport={canExport}
                 onDeleted={(id) => setRows((prev) => prev?.filter((r) => r.id !== id) ?? null)}
               />
             </li>

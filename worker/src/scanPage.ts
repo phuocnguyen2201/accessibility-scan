@@ -4,7 +4,9 @@ import {
   computeA11yScore,
   computeSeoScore,
   estimatePerfScore,
+  formatAxeTarget,
   runSeoChecks,
+  truncateText,
   type Impact,
   type ScanCheck,
   type PerfMetrics,
@@ -16,6 +18,7 @@ import { config } from "./config";
 const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"];
 const MAX_NODES = 25; // elements stored per rule per page (the UI pages through them one at a time)
 const MAX_SNIPPET = 500;
+const MAX_FAILURE_SUMMARY = 1000; // axe's "Fix any of the following" text; cut at a line break, never mid-instruction
 
 export interface ViolationInsert {
   rule_id: string;
@@ -122,9 +125,9 @@ export async function scanPage(page: Page, url: string, checks: ScanCheck[]): Pr
     wcag_tags: v.tags.filter((t) => t.startsWith("wcag") || t === "best-practice"),
     node_count: v.nodes.length,
     nodes: v.nodes.slice(0, MAX_NODES).map((n) => ({
-      target: n.target.map(String).join(" "),
-      html: n.html.slice(0, MAX_SNIPPET),
-      failureSummary: n.failureSummary?.slice(0, MAX_SNIPPET),
+      ...formatAxeTarget(n.target),
+      html: truncateText(n.html, MAX_SNIPPET),
+      failureSummary: n.failureSummary == null ? undefined : truncateText(n.failureSummary, MAX_FAILURE_SUMMARY),
     })),
   }));
 

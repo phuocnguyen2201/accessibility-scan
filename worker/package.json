@@ -11,6 +11,7 @@
     "postinstall": "node -e \"process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD || require('child_process').execSync('playwright install chromium', { stdio: 'inherit' })\""
   },
   "dependencies": {
+    "@a11y/report": "*",
     "@a11y/shared": "*",
     "@axe-core/playwright": "^4.13.0",
     "@supabase/supabase-js": "^2.117.2",

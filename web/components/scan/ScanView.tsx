@@ -5,8 +5,10 @@ import Link from "next/link";
 import { SCAN_CHECK_LABELS, SCAN_CHECKS, type Scan } from "@a11y/shared";
 import { cancelScan, startScan } from "@/app/actions";
 import { useRouter } from "next/navigation";
+import { canExportStatus } from "@/lib/export-formats";
 import { browserClient } from "@/lib/supabase";
 import { formatDate, formatDuration } from "@/lib/format";
+import { ExportMenu } from "../ExportMenu";
 import { Button, ProgressBar, StatusBadge } from "../ui";
 import { Overview } from "./Overview";
 import { PagesTable } from "./PagesTable";
@@ -19,7 +21,8 @@ const PHASE_LABEL: Record<string, string> = {
   finalizing: "Computing summary",
 };
 
-export function ScanView({ initialScan, tab }: { initialScan: ScanWithSite; tab: "overview" | "pages" }) {
+/** canExport: the viewer is a registered user (guests can't download or get reports by email). */
+export function ScanView({ initialScan, tab, canExport }: { initialScan: ScanWithSite; tab: "overview" | "pages"; canExport: boolean }) {
   const [scan, setScan] = useState(initialScan);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -41,7 +44,13 @@ export function ScanView({ initialScan, tab }: { initialScan: ScanWithSite; tab:
 
   const rescan = () =>
     startTransition(async () => {
-      const res = await startScan({ url: scan.site.display_url, maxPages: scan.max_pages, lighthouseSample: scan.lighthouse_sample, checks });
+      const res = await startScan({
+        url: scan.site.display_url,
+        maxPages: scan.max_pages,
+        lighthouseSample: scan.lighthouse_sample,
+        checks,
+        notify: !!scan.notify_email,
+      });
       if (res.ok) router.push(`/scans/${res.scanId}`);
     });
 
@@ -61,8 +70,10 @@ export function ScanView({ initialScan, tab }: { initialScan: ScanWithSite; tab:
             <span>· {checks.map((c) => SCAN_CHECK_LABELS[c]).join(", ")}</span>
           </p>
           {scan.error && <p className="mt-2 text-sm text-red-700">Error: {scan.error}</p>}
+          {canExport && <EmailStatus scan={scan} />}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-start gap-2">
+          {canExport && canExportStatus(scan.status) && <ExportMenu scanId={scan.id} />}
           {live ? (
             <Button variant="danger" disabled={pending} onClick={() => startTransition(() => cancelScan(scan.id))}>
               Cancel scan
@@ -74,6 +85,15 @@ export function ScanView({ initialScan, tab }: { initialScan: ScanWithSite; tab:
           )}
         </div>
       </div>
+
+      {!canExport && !live && (
+        <p className="text-sm text-slate-700">
+          <Link href="/signup" className="font-medium text-blue-700 underline">
+            Create a free account
+          </Link>{" "}
+          to download reports (PDF, Excel, Markdown for AI agents) and get them by email when a scan finishes.
+        </p>
+      )}
 
       {live && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4" aria-live="polite">
@@ -101,4 +121,12 @@ export function ScanView({ initialScan, tab }: { initialScan: ScanWithSite; tab:
       {tab === "overview" ? <Overview scan={scan} checks={checks} /> : <PagesTable scanId={scan.id} live={live} checks={checks} />}
     </div>
   );
+}
+
+function EmailStatus({ scan }: { scan: Scan }) {
+  if (!scan.notify_email) return null;
+  if (scan.notify_error) return <p className="mt-2 text-sm text-red-700">The report email couldn&apos;t be sent: {scan.notify_error}</p>;
+  if (scan.notified_at) return <p className="mt-2 text-sm text-slate-600">The reports were emailed to you on {formatDate(scan.notified_at)}.</p>;
+  if (scan.status === "queued" || scan.status === "running") return <p className="mt-2 text-sm text-slate-600">You&apos;ll get the reports by email when this scan finishes.</p>;
+  return null;
 }

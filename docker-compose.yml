@@ -5,6 +5,7 @@
 # Two workers let two different scans run at the same time. Each has 2 browser tabs, so a single
 # scan crawls at the same speed as before, but one big scan no longer blocks the next one.
 # Only worker-1 runs Lighthouse, so the Pi never runs two Lighthouse Chromes at once.
+# Report emails need RESEND_API_KEY, EMAIL_FROM and a public SITE_URL in .env (see .env.example).
 
 x-worker: &worker
   build:

@@ -5,6 +5,7 @@ import { chromium } from "playwright";
 import { SCAN_CHECKS, type ScanCheck } from "@a11y/shared";
 import { config, sleep } from "./config";
 import { check, claimNextLighthouse, db, updatePage } from "./db";
+import { extractAudits } from "./lighthouseAudits";
 
 const pct = (v: number | null | undefined) => (v == null ? null : Math.round(v * 100));
 
@@ -77,6 +78,7 @@ export async function lighthouseLoop(signal: AbortSignal) {
             cls: audit("cumulative-layout-shift"),
             tbt: audit("total-blocking-time"),
             speed_index: audit("speed-index"),
+            audits: extractAudits(lhr as unknown as Parameters<typeof extractAudits>[0], categories),
             created_at: new Date().toISOString(),
           }),
           "upsert lighthouse",

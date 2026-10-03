@@ -3,6 +3,7 @@ FROM mcr.microsoft.com/playwright:v1.63.0-noble
 WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/shared packages/shared
+COPY packages/report packages/report
 COPY worker worker
 RUN npm ci --workspace worker --include-workspace-root --ignore-scripts
 WORKDIR /app/worker

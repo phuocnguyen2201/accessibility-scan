@@ -1,3 +1,5 @@
+import type { LighthouseAudit } from "./fixes";
+
 export type Impact = "critical" | "serious" | "moderate" | "minor";
 export const IMPACTS: Impact[] = ["critical", "serious", "moderate", "minor"];
 
@@ -44,7 +46,10 @@ export interface SeoCheck {
 }
 
 export interface ViolationNode {
+  /** Display selector; iframes and shadow roots are separated by " >>> ". */
   target: string;
+  /** Selector per document / shadow root, as axe reports it (missing on older scans). */
+  targetPath?: string[];
   html: string;
   failureSummary?: string;
 }
@@ -98,6 +103,10 @@ export interface Scan {
   finished_at: string | null;
   error: string | null;
   summary: ScanSummary | null;
+  /** Email the reports to the owner when the scan completes (registered users only). */
+  notify_email?: boolean;
+  notified_at?: string | null;
+  notify_error?: string | null;
 }
 
 export interface PageRow {
@@ -163,5 +172,7 @@ export interface LighthouseRow {
   cls: number | null;
   tbt: number | null;
   speed_index: number | null;
+  /** Failing performance / SEO / best-practices audits (null on results from before this was stored). */
+  audits?: LighthouseAudit[] | null;
   created_at: string;
 }

@@ -10,7 +10,7 @@
     "dev:web": "npm run dev -w web",
     "dev:worker": "npm run dev -w worker",
     "scan": "npm run scan -w worker --",
-    "test": "npm test -w @a11y/shared",
+    "test": "npm test -w @a11y/shared -w @a11y/report",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "deploy:netlify": "bash scripts/deploy-netlify.sh"
   },

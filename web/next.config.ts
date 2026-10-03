@@ -8,7 +8,9 @@ try {
 }
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@a11y/shared"],
+  transpilePackages: ["@a11y/shared", "@a11y/report"],
+  // exceljs is CommonJS with optional native deps; load it from node_modules instead of bundling it.
+  serverExternalPackages: ["exceljs"],
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,

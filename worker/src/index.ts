@@ -4,6 +4,7 @@ import { config, sleep } from "./config";
 import { finalizeScan, runScan } from "./crawler";
 import { claimNextScan } from "./db";
 import { lighthouseLoop } from "./lighthouse";
+import { notifyPending, notifyScanFinished } from "./notify";
 
 const workerId = `${hostname()}-${process.pid}`;
 const controller = new AbortController();
@@ -21,6 +22,10 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
  */
 export async function scanLoop(signal: AbortSignal, onlyScanId?: string) {
   let browser: Browser | null = null;
+  const getBrowser = async () => {
+    if (!browser?.isConnected()) browser = await chromium.launch({ headless: true });
+    return browser;
+  };
   try {
     while (!signal.aborted) {
       const scan = await claimNextScan(workerId).catch((e) => {
@@ -28,13 +33,16 @@ export async function scanLoop(signal: AbortSignal, onlyScanId?: string) {
         return null;
       });
       if (!scan) {
+        await notifyPending(getBrowser).catch((e) => console.error("pending notifications:", e.message));
         await sleep(config.pollMs);
         continue;
       }
 
-      if (!browser?.isConnected()) browser = await chromium.launch({ headless: true });
+      const scanBrowser = await getBrowser();
       try {
-        await runScan(scan, browser);
+        await runScan(scan, scanBrowser);
+        // After the scan is final, so a failed email can never change its status.
+        await notifyScanFinished(scan.id, await getBrowser());
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[scan ${scan.id.slice(0, 8)}] failed:`, message);
@@ -43,7 +51,7 @@ export async function scanLoop(signal: AbortSignal, onlyScanId?: string) {
       if (onlyScanId && scan.id === onlyScanId) return;
     }
   } finally {
-    await browser?.close().catch(() => {});
+    await (browser as Browser | null)?.close().catch(() => {});
   }
 }
 

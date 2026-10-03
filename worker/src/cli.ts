@@ -1,6 +1,7 @@
 /**
- * Usage: npm run scan -- https://example.com --email you@example.com [--max 100] [--lighthouse 5] [--checks accessibility,seo]
+ * Usage: npm run scan -- https://example.com --email you@example.com [--max 100] [--lighthouse 5] [--checks accessibility,seo] [--notify]
  * Queues a scan for the URL, owned by the given account, and runs this worker until that scan finishes.
+ * --notify emails the reports (PDF, Excel, Markdown) to the account when it completes.
  */
 import { normalizeUrl, SCAN_CHECKS, type ScanCheck } from "@a11y/shared";
 import { config } from "./config";
@@ -14,10 +15,12 @@ const flag = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const num = (name: string) => (flag(name) == null ? undefined : Number(flag(name)));
-const input = args.find((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
+const BOOLEAN_FLAGS = new Set(["--notify"]);
+const input = args.find((a, i) => !a.startsWith("--") && !(args[i - 1]?.startsWith("--") && !BOOLEAN_FLAGS.has(args[i - 1])));
+const notify = args.includes("--notify");
 const target = input ? normalizeUrl(input) : null;
 if (!target) {
-  console.error("Usage: npm run scan -- <url> --email <account email> [--max 100] [--lighthouse 5] [--checks accessibility,seo]");
+  console.error("Usage: npm run scan -- <url> --email <account email> [--max 100] [--lighthouse 5] [--checks accessibility,seo] [--notify]");
   process.exit(1);
 }
 
@@ -59,7 +62,15 @@ const site = check(
 const scan = check(
   await db
     .from("scans")
-    .insert({ site_id: site.id, user_id: userId, start_url: target.url, max_pages: maxPages, lighthouse_sample: lighthouseSample, checks })
+    .insert({
+      site_id: site.id,
+      user_id: userId,
+      start_url: target.url,
+      max_pages: maxPages,
+      lighthouse_sample: lighthouseSample,
+      checks,
+      notify_email: notify,
+    })
     .select()
     .single(),
   "create scan",
@@ -73,6 +84,6 @@ await scanLoop(new AbortController().signal, scan.id);
 lighthouseStop.abort();
 await lh;
 
-const { data } = await db.from("scans").select("status, pages_found, pages_scanned, summary").eq("id", scan.id).single();
+const { data } = await db.from("scans").select("status, pages_found, pages_scanned, summary, notified_at, notify_error").eq("id", scan.id).single();
 console.log(JSON.stringify(data, null, 2));
 process.exit(0);
