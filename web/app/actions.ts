@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import type { User } from "@supabase/supabase-js";
 import { normalizeUrl, SCAN_CHECKS, type Scan, type Site } from "@a11y/shared";
 import { adminClient, guestLimits, limits } from "@/lib/supabase-admin";
-import { isGuest, minutesUntil, nextGuestScanAt, requesterIpHash } from "@/lib/guest";
+import { isGuest, minutesUntil, nextGuestScanAt, nextUserScanAt, requesterIpHash, waitText } from "@/lib/guest";
 import { currentUser, serverClient } from "@/lib/supabase-server";
 
 const NOT_SIGNED_IN = { ok: false as const, error: "Your session has expired. Please sign in again." };
@@ -47,6 +48,22 @@ const startSchema = z.object({
   notify: z.boolean().optional(),
 });
 
+/**
+ * Why the user can't start a scan right now, or null if they can.
+ * Guests (ipHash set) get one scan per cooldown window, per guest account and per network;
+ * signed-in users get a fixed number of scans per rolling 24 hours.
+ */
+async function scanLimitError(user: User, ipHash: string | null): Promise<string | null> {
+  if (ipHash) {
+    const next = await nextGuestScanAt(user, ipHash);
+    return next
+      ? `Guests can start one scan every ${guestLimits.cooldownMinutes} minutes. Try again in ${minutesUntil(next)}, or create a free account to scan without waiting.`
+      : null;
+  }
+  const next = await nextUserScanAt(user.id);
+  return next ? `You can start ${limits.dailyScans} scans per 24 hours. Try again in ${waitText(next)}.` : null;
+}
+
 /** Creates the user's site if needed and queues a new scan. Re-scans add a new scan to the site's history. */
 export async function startScan(input: z.input<typeof startSchema>): Promise<{ ok: true; scanId: string } | { ok: false; error: string }> {
   const parsed = startSchema.safeParse(input);
@@ -85,17 +102,9 @@ export async function startScan(input: z.input<typeof startSchema>): Promise<{ o
     .maybeSingle();
   if (active) return { ok: true, scanId: active.id };
 
-  // Guests get one scan per cooldown window, per guest account and per network.
   const ipHash = guest ? await requesterIpHash() : null;
-  if (ipHash) {
-    const next = await nextGuestScanAt(user, ipHash);
-    if (next) {
-      return {
-        ok: false,
-        error: `Guests can start one scan every ${guestLimits.cooldownMinutes} minutes. Try again in ${minutesUntil(next)}, or create a free account to scan without waiting.`,
-      };
-    }
-  }
+  const limitError = await scanLimitError(user, ipHash);
+  if (limitError) return { ok: false, error: limitError };
 
   const { data: scan, error } = await db
     .from("scans")
@@ -130,16 +139,38 @@ export async function cancelScan(scanId: string) {
   }
 }
 
-export async function requestLighthouse(pageId: string) {
-  if (!(await currentUser())) return;
+/** Queues an on-demand Lighthouse run. Re-runs of a finished page are limited to one per cooldown window. */
+export async function requestLighthouse(pageId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await currentUser())) return NOT_SIGNED_IN;
   // Only proceed if RLS lets this user see the page, i.e. it belongs to one of their scans.
-  const { data: page } = await (await serverClient()).from("pages").select("id").eq("id", pageId).maybeSingle();
-  if (!page) return;
-  await adminClient()
+  const { data: page } = await (await serverClient())
+    .from("pages")
+    .select("id, lighthouse_requested_at")
+    .eq("id", pageId)
+    .maybeSingle();
+  if (!page) return { ok: false, error: "Page not found." };
+
+  const cooldownMs = limits.lighthouseCooldownMinutes * 60_000;
+  const since = new Date(Date.now() - cooldownMs).toISOString();
+  // The cooldown is part of the update's filter, so parallel clicks can't queue more than one run.
+  const { data: queued, error } = await adminClient()
     .from("pages")
     .update({ lighthouse_status: "queued", lighthouse_requested_at: new Date().toISOString() })
     .eq("id", pageId)
-    .in("lighthouse_status", ["none", "failed", "done"]);
+    .in("lighthouse_status", ["none", "failed", "done"])
+    .or(`lighthouse_status.eq.none,lighthouse_requested_at.is.null,lighthouse_requested_at.lt.${since}`)
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+  if (queued.length) return { ok: true };
+
+  if (page.lighthouse_requested_at) {
+    const next = new Date(new Date(page.lighthouse_requested_at).getTime() + cooldownMs);
+    if (next.getTime() > Date.now()) {
+      return { ok: false, error: `Lighthouse ran on this page recently. Try again in ${minutesUntil(next)}.` };
+    }
+  }
+  // Already queued or running.
+  return { ok: true };
 }
 
 const dismissSchema = z.object({
