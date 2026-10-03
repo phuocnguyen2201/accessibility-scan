@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ViolationNode, ViolationRow } from "@a11y/shared";
 import { browserClient } from "@/lib/supabase";
+import { CopyButton } from "./CopyButton";
 import { ImpactBadge } from "./ui";
 
 /** Violation without its stored elements; those are fetched one at a time when the issue is expanded. */
@@ -113,12 +114,22 @@ function Occurrences({ violationId, total }: { violationId: string; total: numbe
           <>
             {current.failureSummary && <FailureSummary text={current.failureSummary} />}
             <div>
-              <div className="text-xs font-medium text-slate-700">Selector</div>
-              <code className="mt-0.5 block break-all text-xs text-slate-800">{current.target}</code>
+              <div className="text-sm font-medium text-slate-700">Selector</div>
+              <div className="relative mt-1">
+                <code className="block break-all rounded-md border border-slate-300 bg-slate-50 py-2 pl-3 pr-24 text-base text-slate-800">{current.target}</code>
+                <div className="absolute right-1.5 top-1.5">
+                  <CopyButton text={current.target} label="selector" />
+                </div>
+              </div>
             </div>
             <div>
-              <div className="text-xs font-medium text-slate-700">HTML</div>
-              <pre className="mt-0.5 overflow-x-auto whitespace-pre-wrap break-all rounded code-block p-2 text-xs">{current.html}</pre>
+              <div className="text-sm font-medium text-slate-700">HTML</div>
+              <div className="relative mt-1">
+                <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-md code-block py-2 pl-3 pr-24 text-base">{current.html}</pre>
+                <div className="absolute right-1.5 top-1.5">
+                  <CopyButton text={current.html} label="HTML" />
+                </div>
+              </div>
             </div>
           </>
         )}
