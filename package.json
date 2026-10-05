@@ -4,11 +4,14 @@
   "workspaces": [
     "packages/*",
     "web",
-    "worker"
+    "worker",
+    "admin"
   ],
   "scripts": {
     "dev:web": "npm run dev -w web",
     "dev:worker": "npm run dev -w worker",
+    "dev:admin": "npm run dev -w admin",
+    "admin:create-user": "npm run create-user -w admin",
     "scan": "npm run scan -w worker --",
     "test": "npm test -w @a11y/shared -w @a11y/report",
     "typecheck": "npm run typecheck --workspaces --if-present",

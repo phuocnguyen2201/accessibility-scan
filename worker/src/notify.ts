@@ -1,5 +1,5 @@
 import type { Browser } from "playwright";
-import { esc, exportBaseName, loadExportData, markdown, reportHtml, workbook, type ExportData } from "@a11y/report";
+import { esc, exportBaseName, loadExportData, markdown, renderPdf, reportHtml, workbook, type ExportData } from "@a11y/report";
 import { config } from "./config";
 import { db } from "./db";
 
@@ -104,27 +104,6 @@ async function sendReport(scanId: string, userId: string | null, browser: Browse
     attachments: attached,
   });
   log(scanId, `report emailed (${attached.map((a) => a.filename.split(".").pop()).join(", ")})`);
-}
-
-async function renderPdf(browser: Browser, html: string): Promise<Buffer> {
-  // The report is static and self-contained: no scripts, no network.
-  const context = await browser.newContext({ javaScriptEnabled: false });
-  try {
-    await context.route("**/*", (route) => route.abort());
-    const page = await context.newPage();
-    await page.setContent(html, { waitUntil: "load", timeout: 60_000 });
-    return await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "14mm", bottom: "16mm", left: "12mm", right: "12mm" },
-      displayHeaderFooter: true,
-      headerTemplate: "<span></span>",
-      footerTemplate:
-        '<div style="font-size:8px;color:#64748b;width:100%;text-align:center"><span class="pageNumber"></span> / <span class="totalPages"></span></div>',
-    });
-  } finally {
-    await context.close().catch(() => {});
-  }
 }
 
 async function sendEmail(scanId: string, email: { to: string; subject: string; html: string; text: string; attachments: Attachment[] }) {

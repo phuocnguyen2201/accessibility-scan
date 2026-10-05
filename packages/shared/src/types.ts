@@ -176,3 +176,84 @@ export interface LighthouseRow {
   audits?: LighthouseAudit[] | null;
   created_at: string;
 }
+
+// ---------------------------------------------------------------- admin usage statistics
+// Returned by the admin_usage_stats / admin_queue_health RPCs. Aggregates only: no user or site data.
+
+export interface UsageMonth {
+  /** "YYYY-MM" */
+  month: string;
+  /** Users with at least one scan that month (registered + guests). */
+  mau: number;
+  registered_mau: number;
+  /** Users whose first ever scan was that month. */
+  new_users: number;
+  signups: number;
+  scans: number;
+  pages: number;
+  scan_minutes: number;
+  lighthouse_runs: number;
+}
+
+export interface UsageDay {
+  /** "YYYY-MM-DD" */
+  day: string;
+  completed: number;
+  failed: number;
+  cancelled: number;
+  in_progress: number;
+  active_users: number;
+}
+
+export interface UsageStats {
+  range: { from: string; to: string };
+  kpis: {
+    registered_users: number;
+    guest_users: number;
+    new_signups: number;
+    active_users: number;
+    scans: number;
+    pages_scanned: number;
+    scan_hours: number;
+    lighthouse_runs: number;
+  };
+  monthly: UsageMonth[];
+  daily: UsageDay[];
+  engagement: {
+    /** Average daily active users / active users over the last (up to) 30 days of the range. */
+    stickiness: number | null;
+    returning_users: number;
+    converted_guests: number;
+    total_guests_ever: number;
+  };
+  scan_time: { avg_minutes: number | null; median_minutes: number | null; pages_per_hour: number | null; avg_pages: number | null };
+  limits: { daily_limit: number; limit_reached: number; guest_scans: number; registered_scans: number };
+  features: {
+    scans: number;
+    accessibility: number;
+    seo: number;
+    performance: number;
+    best_practices: number;
+    email_opt_in: number;
+    emails_sent: number;
+    emails_failed: number;
+  };
+  reliability: { completed: number; failed: number; cancelled: number; errors: { category: string; count: number }[] };
+  findings: {
+    pages_checked: number;
+    avg_a11y: number | null;
+    avg_seo: number | null;
+    avg_perf: number | null;
+    issues_found: number;
+    top_rules: { rule_id: string; help: string; pages: number }[];
+  };
+}
+
+export interface QueueHealth {
+  queued_scans: number;
+  running_scans: number;
+  oldest_queued_minutes: number | null;
+  lighthouse_queued: number;
+  lighthouse_running: number;
+  workers: { worker_id: string; running: number; last_heartbeat: string | null }[];
+}

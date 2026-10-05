@@ -2,3 +2,5 @@
 **/.next
 .env
 .git
+admin-data
+brag-output
