@@ -31,7 +31,7 @@ MSYS_NO_PATHCONV=1 docker run --rm \
     mkdir /app && cd /src
     # Copy sources only: no Windows node_modules, build output, git history or .env.
     tar --exclude='*/node_modules' --exclude=./node_modules --exclude=.next --exclude=.netlify \
-        --exclude=.git --exclude=.env -cf - . | (cd /app && tar xf -)
+        --exclude=.git --exclude=.env --exclude=./admin-data -cf - . | (cd /app && tar xf -)
     cd /app && npm ci --no-audit --no-fund --loglevel=error
     npm i -g netlify-cli@27.10.2 --no-audit --no-fund --loglevel=error > /dev/null
     netlify deploy --build $MODE --filter web --site $SITE_ID

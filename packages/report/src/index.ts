@@ -4,3 +4,6 @@ export * from "./csv";
 export * from "./xlsx";
 export * from "./markdown";
 export * from "./html";
+export * from "./usage";
+export * from "./snapshot";
+export * from "./pdf";

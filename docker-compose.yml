@@ -34,6 +34,26 @@ services:
       WORKER_CONCURRENCY: 2
       LIGHTHOUSE_ENABLED: "false"
 
+  # Owner-only usage dashboard. Never exposed publicly: it listens on ADMIN_BIND only
+  # (127.0.0.1 by default; set the Pi's Tailscale IP to reach it from your laptop/phone).
+  # The admin account lives in ./admin-data on the Pi (create it with
+  #   docker compose run --rm admin npm run create-user).
+  admin:
+    build:
+      context: .
+      dockerfile: admin/Dockerfile
+    image: a11y-scan-admin
+    env_file: .env
+    volumes:
+      - ./admin-data:/data
+    ports: ["${ADMIN_BIND:-127.0.0.1}:3001:3001"]
+    shm_size: 512mb # Chromium for snapshot PDF / PNG exports
+    mem_limit: 1g
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
   # Optional: run the web app on the Pi as well instead of Netlify.
   web:
     profiles: ["web"]
