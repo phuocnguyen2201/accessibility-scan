@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { currentUser } from "@/lib/supabase-server";
+import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { signOut } from "./auth-actions";
 import "./globals.css";
@@ -53,6 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
           </div>
         </header>
+        <InAppBrowserNotice />
         <main id="main" className="mx-auto max-w-7xl px-4 py-6">
           {children}
         </main>
