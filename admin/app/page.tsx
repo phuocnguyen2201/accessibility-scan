@@ -1,5 +1,5 @@
 import { Download } from "lucide-react";
-import { growth, rangeLabel } from "@a11y/report";
+import { growth, monthLabel, rangeLabel } from "@a11y/report";
 import type { UsageStats } from "@a11y/shared";
 import { DailyChart, HoursChart, MauChart } from "@/components/Charts";
 import { HealthCard } from "@/components/HealthCard";
@@ -70,7 +70,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
-          label={lastMonth ? `Monthly active users (${lastMonth.month})` : "Active users"}
+          label={lastMonth ? `Monthly active users (${monthLabel(lastMonth.month)})` : "Active users"}
           value={fmt(lastMonth?.mau ?? k.active_users)}
           delta={mauGrowth}
           hint={`${fmt(k.active_users)} active in the period`}
@@ -98,7 +98,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               <tbody className="divide-y divide-slate-100">
                 {stats.monthly.map((m) => (
                   <tr key={m.month}>
-                    <td className="py-1.5">{m.month}</td>
+                    <td className="py-1.5">{monthLabel(m.month)}</td>
                     <td className={num}>{m.mau}</td>
                     <td className={num}>{m.new_users}</td>
                     <td className={num}>{m.mau - m.new_users}</td>

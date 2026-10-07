@@ -124,11 +124,11 @@ export function snapshotHtml(s: UsageStats, opts: SnapshotOptions) {
 
   const trend =
     s.monthly.length >= 2
-      ? { title: "Monthly active users", points: s.monthly.map((m) => ({ label: monthLabel(m.month).split(" ")[0], value: m.mau })) }
+      ? { title: "Monthly active users", points: s.monthly.map((m) => ({ label: monthLabel(m.month), value: m.mau })) }
       : { title: "Daily active users", points: s.daily.map((d) => ({ label: d.day.slice(8), value: d.active_users })) };
   const time =
     s.monthly.length >= 2
-      ? { title: "Hours scanned per month", points: s.monthly.map((m) => ({ label: monthLabel(m.month).split(" ")[0], value: m.scan_minutes / 60 })) }
+      ? { title: "Hours scanned per month", points: s.monthly.map((m) => ({ label: monthLabel(m.month), value: m.scan_minutes / 60 })) }
       : null;
   const checked = s.findings.pages_checked;
   const issues = s.findings.top_rules.slice(0, 3).filter(() => checked > 0);

@@ -16,9 +16,10 @@ export function growth(monthly: UsageMonth[], key: keyof Omit<UsageMonth, "month
   return prev[key] > 0 ? Math.round(((last[key] - prev[key]) / prev[key]) * 1000) / 10 : null;
 }
 
-/** "Sep 2026" */
-export const monthLabel = (month: string) =>
-  new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "2026-09" → "Sep/26" — a slash so the month/year pair doesn't read as a month/day date. */
+export const monthLabel = (month: string) => `${MONTHS[Number(month.slice(5, 7)) - 1]}/${month.slice(2, 4)}`;
 
 /** "1 Sep 2026 – 30 Sep 2026" (the range end is exclusive). */
 export function rangeLabel(stats: UsageStats) {
