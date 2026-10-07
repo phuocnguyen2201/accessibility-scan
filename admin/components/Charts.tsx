@@ -6,7 +6,13 @@ import type { UsageDay, UsageMonth } from "@a11y/shared";
 // Charts follow the dataviz reference: categorical slots 1-2 for series, the fixed status palette for scan
 // outcomes, recessive axes, a legend for 2+ series, hover tooltips, and a table view below each chart.
 
-const monthShort = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
+// "Sep/26" — a slash instead of a space so the month/year pair doesn't read as a month/day date.
+const monthShort = (m: string) => {
+  const d = new Date(`${m}-01T00:00:00Z`);
+  const month = d.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+  const year = d.toLocaleDateString("en-US", { year: "2-digit", timeZone: "UTC" });
+  return `${month}/${year}`;
+};
 const axis = { tickLine: false, axisLine: { stroke: "var(--chart-axis-line)" }, tick: { fill: "var(--chart-axis-text)", fontSize: 12 } } as const;
 const grid = <CartesianGrid vertical={false} stroke="var(--chart-axis-line)" strokeOpacity={0.4} />;
 const legend = <Legend iconType="square" iconSize={10} wrapperStyle={{ fontSize: 12, color: "var(--chart-axis-text)" }} />;

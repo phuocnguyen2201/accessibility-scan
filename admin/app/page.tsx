@@ -81,7 +81,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card title="Monthly active users" hint="Users with at least one scan in the month" className="lg:col-span-2">
+        <Card title="Monthly active users" hint="Users with at least one scan in the month · x-axis is month/year (MMM/YY)" className="lg:col-span-2">
           <MauChart monthly={stats.monthly} />
           <details className="mt-3 text-sm">
             <summary className="cursor-pointer text-slate-700">Table view</summary>
@@ -123,7 +123,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card title="Scanning time per month" hint="Wall-clock hours from start to finish of each scan" className="lg:col-span-2">
+        <Card title="Scanning time per month" hint="Wall-clock hours from start to finish of each scan · x-axis is month/year (MMM/YY)" className="lg:col-span-2">
           <HoursChart monthly={stats.monthly} />
         </Card>
         <Card title="Scan profile">
