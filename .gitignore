@@ -11,3 +11,5 @@ dist
 
 # Local admin account (password hash) for the Pi admin dashboard
 admin-data/
+brag-output/
+supabase/migrations/

@@ -21,7 +21,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="min-h-screen antialiased">
+      {/* Extensions like ColorZilla add attributes to <body> before hydration. */}
+      <body className="min-h-screen antialiased" suppressHydrationWarning>
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:rounded focus:bg-white focus:px-3 focus:py-2">
           Skip to content
         </a>

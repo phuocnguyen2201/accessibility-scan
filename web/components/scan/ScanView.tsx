@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { SCAN_CHECK_LABELS, SCAN_CHECKS, type Scan } from "@a11y/shared";
 import { cancelScan, startScan } from "@/app/actions";
@@ -14,6 +14,9 @@ import { Overview } from "./Overview";
 import { PagesTable } from "./PagesTable";
 
 type ScanWithSite = Scan & { site: { display_url: string; normalized_url: string } };
+
+/** Per-browser re-scan email choice: "always" sends without asking, "never" skips without asking. */
+const RESCAN_EMAIL_KEY = "rescan-email";
 
 const PHASE_LABEL: Record<string, string> = {
   crawling: "Crawling and checking pages",
@@ -42,17 +45,42 @@ export function ScanView({ initialScan, tab, canExport }: { initialScan: ScanWit
     };
   }, [scan.id]);
 
-  const rescan = () =>
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [remember, setRemember] = useState<"always" | "never" | null>(null);
+
+  const runRescan = (notify: boolean) =>
     startTransition(async () => {
       const res = await startScan({
         url: scan.site.display_url,
         maxPages: scan.max_pages,
         lighthouseSample: scan.lighthouse_sample,
         checks,
-        notify: !!scan.notify_email,
+        notify,
       });
       if (res.ok) router.push(`/scans/${res.scanId}`);
     });
+
+  const rescan = () => {
+    // Guests have no email address, so there's nothing to ask.
+    if (!canExport) return runRescan(false);
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(RESCAN_EMAIL_KEY);
+    } catch {}
+    if (saved === "always" || saved === "never") return runRescan(saved === "always");
+    setRemember(null);
+    dialogRef.current?.showModal();
+  };
+
+  const answer = (notify: boolean) => {
+    if (remember) {
+      try {
+        localStorage.setItem(RESCAN_EMAIL_KEY, remember);
+      } catch {}
+    }
+    dialogRef.current?.close();
+    runRescan(notify);
+  };
 
   const tabClass = (active: boolean) =>
     `border-b-2 px-4 py-2 text-sm font-medium ${active ? "border-blue-700 text-blue-800" : "border-transparent text-slate-600 hover:text-slate-900"}`;
@@ -85,6 +113,41 @@ export function ScanView({ initialScan, tab, canExport }: { initialScan: ScanWit
           )}
         </div>
       </div>
+
+      <dialog ref={dialogRef} aria-labelledby="rescan-title" className="m-auto w-[calc(100%-2rem)] max-w-md rounded-lg p-5 shadow-xl sm:p-6">
+        <h2 id="rescan-title" className="text-lg font-semibold text-slate-900">
+          Re-scan this site
+        </h2>
+        <p className="mt-2 text-sm text-slate-700">Send a notification by email with the reports when the re-scan finishes?</p>
+        <div className="mt-4 space-y-2">
+          <label className="flex items-center gap-2 text-sm text-slate-800">
+            <input
+              type="checkbox"
+              checked={remember === "always"}
+              onChange={(e) => setRemember(e.target.checked ? "always" : null)}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Always send email notification on re-scan
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-800">
+            <input
+              type="checkbox"
+              checked={remember === "never"}
+              onChange={(e) => setRemember(e.target.checked ? "never" : null)}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Never ask again (don&apos;t send email)
+          </label>
+        </div>
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <Button variant="secondary" disabled={pending || remember === "always"} onClick={() => answer(false)}>
+            No
+          </Button>
+          <Button disabled={pending || remember === "never"} onClick={() => answer(true)}>
+            Yes
+          </Button>
+        </div>
+      </dialog>
 
       {!canExport && !live && (
         <p className="text-sm text-slate-700">
