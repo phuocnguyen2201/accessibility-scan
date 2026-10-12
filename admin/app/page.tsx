@@ -171,9 +171,32 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               ["Completed", fmt(r.completed)],
               ["Failed", `${fmt(r.failed)} (${pct(r.failed, finished)})`],
               ["Cancelled by user", fmt(r.cancelled)],
-              ["Report emails sent / failed", `${fmt(f.emails_sent)} / ${fmt(f.emails_failed)}`],
             ]}
           />
+          <h3 className="mb-1 mt-4 text-sm font-semibold text-slate-900">Report emails</h3>
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-slate-600">
+              <tr>
+                <th className={th}>Outcome</th>
+                <th className={`${th} text-right`}>Emails</th>
+                <th className={`${th} text-right`}>Share</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {(
+                [
+                  ["Sent", f.emails_sent],
+                  ["Failed", f.emails_failed],
+                ] as const
+              ).map(([label, n]) => (
+                <tr key={label}>
+                  <td className="py-1.5">{label}</td>
+                  <td className={num}>{fmt(n)}</td>
+                  <td className={num}>{pct(n, f.emails_sent + f.emails_failed)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
           {r.errors.length > 0 && (
             <>
               <h3 className="mb-1 mt-4 text-sm font-semibold text-slate-900">Failure causes</h3>
