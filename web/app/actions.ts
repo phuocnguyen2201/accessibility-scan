@@ -6,6 +6,7 @@ import type { User } from "@supabase/supabase-js";
 import { normalizeUrl, SCAN_CHECKS, type Scan, type Site } from "@a11y/shared";
 import { adminClient, guestLimits, limits } from "@/lib/supabase-admin";
 import { isGuest, minutesUntil, nextGuestScanAt, nextUserScanAt, requesterIpHash, waitText } from "@/lib/guest";
+import { isPremium } from "@/lib/plan";
 import { currentUser, serverClient } from "@/lib/supabase-server";
 
 const NOT_SIGNED_IN = { ok: false as const, error: "Your session has expired. Please sign in again." };
@@ -31,6 +32,7 @@ export async function checkSite(input: string): Promise<CheckResult> {
     .from("scans")
     .select("*")
     .eq("site_id", site.id)
+    .eq("mode", "full")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -46,6 +48,8 @@ const startSchema = z.object({
   checks: z.array(z.enum(SCAN_CHECKS)).min(1, "Choose at least one check"),
   /** Email the reports when the scan completes. Ignored for guests, who have no email address. */
   notify: z.boolean().optional(),
+  /** "count" only crawls to count the site's pages (premium). Checks, Lighthouse and email are ignored. */
+  mode: z.enum(["full", "count"]).optional(),
 });
 
 /**
@@ -78,9 +82,11 @@ export async function startScan(input: z.input<typeof startSchema>): Promise<{ o
   if (!user) return NOT_SIGNED_IN;
 
   const guest = isGuest(user);
-  const maxPages = Math.min(parsed.data.maxPages, guest ? guestLimits.maxPages : limits.maxPagesCap);
-  const lighthouseSample = Math.min(parsed.data.lighthouseSample, maxPages, guest ? guestLimits.lighthouseSample : Infinity);
-  if (lighthouseSample === 0 && checks.length === 1 && checks[0] === "best-practices") {
+  const countOnly = parsed.data.mode === "count";
+  if (countOnly && !(await isPremium(user))) return { ok: false, error: "Page count is a premium feature." };
+  const maxPages = Math.min(parsed.data.maxPages, countOnly ? limits.countMaxPagesCap : guest ? guestLimits.maxPages : limits.maxPagesCap);
+  const lighthouseSample = countOnly ? 0 : Math.min(parsed.data.lighthouseSample, maxPages, guest ? guestLimits.lighthouseSample : Infinity);
+  if (!countOnly && lighthouseSample === 0 && checks.length === 1 && checks[0] === "best-practices") {
     return { ok: false, error: "Best practices comes from Lighthouse. Set a Lighthouse sample above 0, or choose another check." };
   }
   const db = adminClient();
@@ -103,7 +109,8 @@ export async function startScan(input: z.input<typeof startSchema>): Promise<{ o
   if (active) return { ok: true, scanId: active.id };
 
   const ipHash = guest ? await requesterIpHash() : null;
-  const limitError = await scanLimitError(user, ipHash);
+  // Page counts don't count toward the daily scan limit.
+  const limitError = countOnly ? null : await scanLimitError(user, ipHash);
   if (limitError) return { ok: false, error: limitError };
 
   const { data: scan, error } = await db
@@ -115,14 +122,16 @@ export async function startScan(input: z.input<typeof startSchema>): Promise<{ o
       max_pages: maxPages,
       lighthouse_sample: lighthouseSample,
       checks,
-      notify_email: !!parsed.data.notify && !guest && !!user.email,
+      mode: countOnly ? "count" : "full",
+      notify_email: !countOnly && !!parsed.data.notify && !guest && !!user.email,
       requester_ip_hash: ipHash,
     })
     .select("id")
     .single();
   if (error) return { ok: false, error: error.message };
 
-  await db.from("sites").update({ last_scan_id: scan.id }).eq("id", site.id);
+  // The site's latest scan is its latest full scan; page counts have no results to show there.
+  if (!countOnly) await db.from("sites").update({ last_scan_id: scan.id }).eq("id", site.id);
   return { ok: true, scanId: scan.id };
 }
 
@@ -253,11 +262,12 @@ export async function deleteScan(scanId: string): Promise<{ ok: true } | { ok: f
   const { error } = await db.from("scans").delete().eq("id", scan.id);
   if (error) return { ok: false, error: error.message };
 
-  // Point the site at its newest remaining scan (null if none left).
+  // Point the site at its newest remaining full scan (null if none left).
   const { data: latest } = await db
     .from("scans")
     .select("id")
     .eq("site_id", scan.site_id)
+    .eq("mode", "full")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

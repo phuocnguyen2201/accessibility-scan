@@ -41,12 +41,12 @@ export async function scanLoop(signal: AbortSignal, onlyScanId?: string) {
       const scanBrowser = await getBrowser();
       try {
         await runScan(scan, scanBrowser);
-        // After the scan is final, so a failed email can never change its status.
-        await notifyScanFinished(scan.id, await getBrowser());
+        // After the scan is final, so a failed email can never change its status. Page counts have no report to send.
+        if (scan.mode !== "count") await notifyScanFinished(scan.id, await getBrowser());
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[scan ${scan.id.slice(0, 8)}] failed:`, message);
-        await finalizeScan(scan.id, scan.site_id, "failed", message).catch(() => {});
+        await finalizeScan(scan.id, scan.site_id, "failed", message, scan.mode === "count").catch(() => {});
       }
       if (onlyScanId && scan.id === onlyScanId) return;
     }

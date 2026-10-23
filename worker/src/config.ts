@@ -14,6 +14,7 @@ export const config = {
   serviceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
   maxPagesCap: num("MAX_PAGES_CAP", 800),
   defaultMaxPages: num("DEFAULT_MAX_PAGES", 800),
+  countMaxPagesCap: num("COUNT_MAX_PAGES_CAP", 5000),
   defaultLighthouseSample: num("DEFAULT_LIGHTHOUSE_SAMPLE", 50),
   concurrency: num("WORKER_CONCURRENCY", 4),
   pollMs: num("WORKER_POLL_MS", 3000),

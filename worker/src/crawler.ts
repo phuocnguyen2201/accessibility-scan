@@ -12,6 +12,7 @@ interface CrawlContext {
   scan: Scan;
   siteHost: string;
   robots: Robots;
+  /** Empty for page counts: pages are only loaded to find links. */
   checks: ScanCheck[];
 }
 
@@ -64,7 +65,9 @@ async function processPage(ctx: CrawlContext, row: PageRow, page: Page) {
     }
 
     // Retries must not duplicate violations.
-    check(await db.from("violations").delete().eq("page_id", row.id), "clear violations");
+    if (ctx.checks.includes("accessibility")) {
+      check(await db.from("violations").delete().eq("page_id", row.id), "clear violations");
+    }
     if (result.violations.length) {
       check(
         await db.from("violations").insert(result.violations.map((v) => ({ ...v, page_id: row.id, scan_id: ctx.scan.id }))),
@@ -159,7 +162,14 @@ async function waitForLighthouse(scan: Scan): Promise<"done" | "cancelled"> {
   }
 }
 
-export async function finalizeScan(scanId: string, siteId: string, status: "completed" | "cancelled" | "failed", error?: string) {
+/** `countOnly` runs don't become the site's latest scan: they have no results to show. */
+export async function finalizeScan(
+  scanId: string,
+  siteId: string,
+  status: "completed" | "cancelled" | "failed",
+  error?: string,
+  countOnly = false,
+) {
   await updateScan(scanId, { phase: "finalizing" });
   await touchScan(scanId);
   const { data: summary } = await db.rpc("scan_stats", { p_scan_id: scanId });
@@ -170,7 +180,7 @@ export async function finalizeScan(scanId: string, siteId: string, status: "comp
     summary: summary ?? null,
     ...(error ? { error } : {}),
   });
-  await db.from("sites").update({ last_scan_id: scanId }).eq("id", siteId);
+  if (!countOnly) await db.from("sites").update({ last_scan_id: scanId }).eq("id", siteId);
 }
 
 export async function runScan(scan: Scan, browser: Browser) {
@@ -179,9 +189,15 @@ export async function runScan(scan: Scan, browser: Browser) {
   const startUrl = new URL(start.url);
   if (config.blockPrivateIps) await assertPublicHost(startUrl.hostname);
 
+  const countOnly = scan.mode === "count";
   // Scans created before the checks column existed ran everything.
-  const checks = scan.checks?.length ? scan.checks : [...SCAN_CHECKS];
-  log(scan, `starting ${start.url} (max ${scan.max_pages} pages, lighthouse sample ${scan.lighthouse_sample}, checks ${checks.join(", ")})`);
+  const checks: ScanCheck[] = countOnly ? [] : scan.checks?.length ? scan.checks : [...SCAN_CHECKS];
+  log(
+    scan,
+    countOnly
+      ? `counting pages of ${start.url} (max ${scan.max_pages} pages)`
+      : `starting ${start.url} (max ${scan.max_pages} pages, lighthouse sample ${scan.lighthouse_sample}, checks ${checks.join(", ")})`,
+  );
   await updateScan(scan.id, { phase: "crawling" });
 
   const robots = await loadRobots(startUrl.origin);
@@ -194,6 +210,12 @@ export async function runScan(scan: Scan, browser: Browser) {
   await enqueueChunked(scan.id, null, 1, sitemapLinks);
 
   const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1366, height: 900 } });
+  if (countOnly) {
+    // Links are all a page count needs, so skip the heavy assets.
+    await context.route("**/*", (route) =>
+      ["image", "media", "font", "stylesheet"].includes(route.request().resourceType()) ? route.abort() : route.continue(),
+    );
+  }
   let outcome: "done" | "cancelled";
   try {
     outcome = await crawl(ctx, context);
@@ -201,13 +223,13 @@ export async function runScan(scan: Scan, browser: Browser) {
     await context.close().catch(() => {});
   }
 
-  if (outcome === "done" && scan.lighthouse_sample > 0) {
+  if (outcome === "done" && !countOnly && scan.lighthouse_sample > 0) {
     await updateScan(scan.id, { phase: "lighthouse" });
     const { data: queued } = await db.rpc("queue_lighthouse_sample", { p_scan_id: scan.id, p_limit: scan.lighthouse_sample });
     log(scan, `crawl finished, running Lighthouse on ${queued ?? 0} pages`);
     outcome = await waitForLighthouse(scan);
   }
 
-  await finalizeScan(scan.id, scan.site_id, outcome === "cancelled" ? "cancelled" : "completed");
+  await finalizeScan(scan.id, scan.site_id, outcome === "cancelled" ? "cancelled" : "completed", undefined, countOnly);
   log(scan, outcome === "cancelled" ? "cancelled" : "completed");
 }

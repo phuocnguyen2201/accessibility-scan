@@ -5,6 +5,7 @@ import Link from "next/link";
 import { guestLimits, limits } from "@/lib/supabase-admin";
 import { currentUser } from "@/lib/supabase-server";
 import { isGuest, minutesUntil, nextGuestScanAt, requesterIpHash } from "@/lib/guest";
+import { isPremium } from "@/lib/plan";
 
 // Reads MAX_PAGES_CAP etc. at request time so limits can change without a rebuild.
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
   const { verified } = await searchParams;
   const user = await currentUser();
   const guest = isGuest(user);
+  const premium = await isPremium(user);
   const nextScan = guest && user ? await nextGuestScanAt(user, await requesterIpHash()) : null;
   return (
     <>
@@ -45,6 +47,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
             defaultLighthouseSample={guest ? guestLimits.lighthouseSample : limits.defaultLighthouseSample}
             maxLighthouseSample={guest ? guestLimits.lighthouseSample : undefined}
             notifyEmail={guest ? null : (user?.email ?? null)}
+            countMaxPagesCap={premium ? limits.countMaxPagesCap : undefined}
           />
         </div>
         <HistoryList canExport={!guest} />

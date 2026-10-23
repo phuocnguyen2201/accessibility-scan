@@ -1,7 +1,8 @@
 /**
- * Usage: npm run scan -- https://example.com --email you@example.com [--max 100] [--lighthouse 5] [--checks accessibility,seo] [--notify]
+ * Usage: npm run scan -- https://example.com --email you@example.com [--max 100] [--lighthouse 5] [--checks accessibility,seo] [--notify] [--count]
  * Queues a scan for the URL, owned by the given account, and runs this worker until that scan finishes.
  * --notify emails the reports (PDF, Excel, Markdown) to the account when it completes.
+ * --count only crawls to count the site's pages (no checks, Lighthouse or email), up to COUNT_MAX_PAGES_CAP.
  */
 import { normalizeUrl, SCAN_CHECKS, type ScanCheck } from "@a11y/shared";
 import { config } from "./config";
@@ -15,12 +16,13 @@ const flag = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const num = (name: string) => (flag(name) == null ? undefined : Number(flag(name)));
-const BOOLEAN_FLAGS = new Set(["--notify"]);
+const BOOLEAN_FLAGS = new Set(["--notify", "--count"]);
 const input = args.find((a, i) => !a.startsWith("--") && !(args[i - 1]?.startsWith("--") && !BOOLEAN_FLAGS.has(args[i - 1])));
-const notify = args.includes("--notify");
+const countOnly = args.includes("--count");
+const notify = args.includes("--notify") && !countOnly;
 const target = input ? normalizeUrl(input) : null;
 if (!target) {
-  console.error("Usage: npm run scan -- <url> --email <account email> [--max 100] [--lighthouse 5] [--checks accessibility,seo] [--notify]");
+  console.error("Usage: npm run scan -- <url> --email <account email> [--max 100] [--lighthouse 5] [--checks accessibility,seo] [--notify] [--count]");
   process.exit(1);
 }
 
@@ -42,8 +44,10 @@ if (!userId) {
   process.exit(1);
 }
 
-const maxPages = Math.min(num("max") ?? config.defaultMaxPages, config.maxPagesCap);
-const lighthouseSample = num("lighthouse") ?? config.defaultLighthouseSample;
+const maxPages = countOnly
+  ? Math.min(num("max") ?? config.countMaxPagesCap, config.countMaxPagesCap)
+  : Math.min(num("max") ?? config.defaultMaxPages, config.maxPagesCap);
+const lighthouseSample = countOnly ? 0 : (num("lighthouse") ?? config.defaultLighthouseSample);
 const checks = (flag("checks")?.split(",").map((c) => c.trim()) ?? [...SCAN_CHECKS]) as ScanCheck[];
 const unknown = checks.filter((c) => !SCAN_CHECKS.includes(c));
 if (!checks.length || unknown.length) {
@@ -69,13 +73,14 @@ const scan = check(
       max_pages: maxPages,
       lighthouse_sample: lighthouseSample,
       checks,
+      mode: countOnly ? "count" : "full",
       notify_email: notify,
     })
     .select()
     .single(),
   "create scan",
 );
-await db.from("sites").update({ last_scan_id: scan.id }).eq("id", site.id);
+if (!countOnly) await db.from("sites").update({ last_scan_id: scan.id }).eq("id", site.id);
 console.log(`queued scan ${scan.id} for ${target.url}`);
 
 const lighthouseStop = new AbortController();

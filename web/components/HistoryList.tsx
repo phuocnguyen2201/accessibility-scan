@@ -6,7 +6,7 @@ import type { Scan } from "@a11y/shared";
 import { browserClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
 import { ScanRowMenu } from "./ScanRowMenu";
-import { Card, ScoreBadge, StatusBadge } from "./ui";
+import { Card, CountBadge, ScoreBadge, StatusBadge } from "./ui";
 
 type HistoryRow = Scan & { site: { display_url: string; normalized_url: string } };
 
@@ -77,7 +77,7 @@ export function HistoryList({ canExport }: { canExport: boolean }) {
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
-                  <ScoreBadge score={s.summary?.avg_a11y} label="Accessibility" />
+                  {s.mode === "count" ? <CountBadge /> : <ScoreBadge score={s.summary?.avg_a11y} label="Accessibility" />}
                   <StatusBadge status={s.status} />
                 </div>
               </Link>
@@ -86,7 +86,7 @@ export function HistoryList({ canExport }: { canExport: boolean }) {
                 siteLabel={s.site.normalized_url}
                 createdAt={s.created_at}
                 status={s.status}
-                canExport={canExport}
+                canExport={canExport && s.mode !== "count"}
                 onDeleted={(id) => setRows((prev) => prev?.filter((r) => r.id !== id) ?? null)}
               />
             </li>

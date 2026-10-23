@@ -85,6 +85,11 @@ const STATUS_CLASSES: Record<ScanStatus, string> = {
   cancelled: "bg-amber-100 text-amber-900",
 };
 
+/** Marks a page count (premium): a crawl with no checks. */
+export function CountBadge() {
+  return <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800">Page count</span>;
+}
+
 export function StatusBadge({ status }: { status: ScanStatus }) {
   return <span className={cx("rounded-full px-2 py-0.5 text-xs font-medium capitalize", STATUS_CLASSES[status])}>{status}</span>;
 }

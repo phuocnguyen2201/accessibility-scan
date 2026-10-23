@@ -6,6 +6,8 @@ export const IMPACTS: Impact[] = ["critical", "serious", "moderate", "minor"];
 /** What a scan audits. "best-practices" only comes from Lighthouse, so it needs a Lighthouse sample. */
 export const SCAN_CHECKS = ["accessibility", "seo", "performance", "best-practices"] as const;
 export type ScanCheck = (typeof SCAN_CHECKS)[number];
+/** "count" crawls the site to count its pages without running any checks (premium only). */
+export type ScanMode = "full" | "count";
 export const SCAN_CHECK_LABELS: Record<ScanCheck, string> = {
   accessibility: "Accessibility",
   seo: "SEO",
@@ -96,6 +98,8 @@ export interface Scan {
   max_pages: number;
   lighthouse_sample: number;
   checks: ScanCheck[];
+  /** Missing on rows read before the mode column existed: treat as "full". */
+  mode?: ScanMode;
   pages_found: number;
   pages_scanned: number;
   created_at: string;

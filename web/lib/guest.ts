@@ -41,7 +41,7 @@ export async function nextGuestScanAt(user: User, ipHash: string): Promise<Date 
 
 /**
  * When a signed-in user may start their next scan, or null if they're under the daily limit.
- * Counts every scan created in the last 24 hours (including cancelled or failed ones).
+ * Counts every full scan created in the last 24 hours (including cancelled or failed ones); page counts are not limited.
  */
 export async function nextUserScanAt(userId: string): Promise<Date | null> {
   const day = 24 * 60 * 60_000;
@@ -50,6 +50,7 @@ export async function nextUserScanAt(userId: string): Promise<Date | null> {
     .from("scans")
     .select("created_at")
     .eq("user_id", userId)
+    .eq("mode", "full")
     .gt("created_at", since)
     .order("created_at", { ascending: true })
     .limit(limits.dailyScans);

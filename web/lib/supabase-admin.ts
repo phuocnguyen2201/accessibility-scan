@@ -11,6 +11,8 @@ export function adminClient() {
 export const limits = {
   maxPagesCap: Number(process.env.MAX_PAGES_CAP) || 800,
   defaultMaxPages: Number(process.env.DEFAULT_MAX_PAGES) || 800,
+  /** Page cap for count-only runs (premium), higher than a full scan since no checks run. */
+  countMaxPagesCap: Number(process.env.COUNT_MAX_PAGES_CAP) || 5000,
   defaultLighthouseSample: Number(process.env.DEFAULT_LIGHTHOUSE_SAMPLE) || 50,
   /** Scans a signed-in user may start per rolling 24 hours (guests have their own cooldown). */
   dailyScans: Number(process.env.DAILY_SCAN_LIMIT) || 15,

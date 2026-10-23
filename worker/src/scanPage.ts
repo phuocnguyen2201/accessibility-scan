@@ -91,7 +91,8 @@ const EXTRACT_SCRIPT = `(() => {
 export async function scanPage(page: Page, url: string, checks: ScanCheck[]): Promise<ScanResult> {
   const response = await page.goto(url, { waitUntil: "load", timeout: config.pageTimeoutMs });
   // Give client-rendered pages a moment to settle, but don't wait forever on chatty sites.
-  await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
+  // Page counts (no checks) only need the links, so they settle for less.
+  await page.waitForLoadState("networkidle", { timeout: checks.length ? 5000 : 2000 }).catch(() => {});
 
   const httpStatus = response?.status() ?? null;
   const contentType = response?.headers()["content-type"] ?? null;

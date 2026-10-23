@@ -16,6 +16,7 @@ export function ScanForm({
   defaultLighthouseSample,
   maxLighthouseSample,
   notifyEmail,
+  countMaxPagesCap,
 }: {
   maxPagesCap: number;
   defaultMaxPages: number;
@@ -24,6 +25,8 @@ export function ScanForm({
   maxLighthouseSample?: number;
   /** Where the finished reports can be emailed; null for guests, who can't get them. */
   notifyEmail: string | null;
+  /** Page cap for a page count; set only for premium users, who get the "Count pages" button. */
+  countMaxPagesCap?: number;
 }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
@@ -46,6 +49,16 @@ export function ScanForm({
       if (!res.ok) return setError(res.error);
       router.push(`/scans/${res.scanId}`);
     });
+
+  // No duplicate check: a page count doesn't replace the site's results.
+  const countPages = () => {
+    setError(null);
+    startTransition(async () => {
+      const res = await startScan({ url, maxPages: countMaxPagesCap!, lighthouseSample: 0, checks: ["accessibility"], mode: "count" });
+      if (!res.ok) return setError(res.error);
+      router.push(`/scans/${res.scanId}`);
+    });
+  };
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +98,18 @@ export function ScanForm({
           <Button type="submit" disabled={pending || !url.trim() || checks.length === 0}>
             {pending ? "Checking..." : "Scan"}
           </Button>
+          {countMaxPagesCap != null && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="shrink-0"
+              disabled={pending || !url.trim()}
+              onClick={countPages}
+              title={`Crawl up to ${countMaxPagesCap} pages without running any checks`}
+            >
+              Count pages
+            </Button>
+          )}
         </div>
         {error && (
           <p id="url-error" role="alert" className="mt-2 text-sm text-red-700">

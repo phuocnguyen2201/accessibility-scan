@@ -9,7 +9,7 @@ import { canExportStatus } from "@/lib/export-formats";
 import { browserClient } from "@/lib/supabase";
 import { formatDate, formatDuration } from "@/lib/format";
 import { ExportMenu } from "../ExportMenu";
-import { Button, ProgressBar, StatusBadge } from "../ui";
+import { Button, CountBadge, ProgressBar, StatusBadge } from "../ui";
 import { Overview } from "./Overview";
 import { PagesTable } from "./PagesTable";
 
@@ -30,7 +30,9 @@ export function ScanView({ initialScan, tab, canExport }: { initialScan: ScanWit
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const live = scan.status === "queued" || scan.status === "running";
-  const checks = scan.checks?.length ? scan.checks : [...SCAN_CHECKS];
+  const countOnly = scan.mode === "count";
+  // A page count ran no checks, so every score and issue view hides itself.
+  const checks = countOnly ? [] : scan.checks?.length ? scan.checks : [...SCAN_CHECKS];
 
   useEffect(() => {
     const db = browserClient();
@@ -54,15 +56,16 @@ export function ScanView({ initialScan, tab, canExport }: { initialScan: ScanWit
         url: scan.site.display_url,
         maxPages: scan.max_pages,
         lighthouseSample: scan.lighthouse_sample,
-        checks,
+        checks: countOnly ? ["accessibility"] : checks,
         notify,
+        mode: countOnly ? "count" : "full",
       });
       if (res.ok) router.push(`/scans/${res.scanId}`);
     });
 
   const rescan = () => {
-    // Guests have no email address, so there's nothing to ask.
-    if (!canExport) return runRescan(false);
+    // Guests have no email address, and page counts send no report, so there's nothing to ask.
+    if (!canExport || countOnly) return runRescan(false);
     let saved: string | null = null;
     try {
       saved = localStorage.getItem(RESCAN_EMAIL_KEY);
@@ -92,16 +95,17 @@ export function ScanView({ initialScan, tab, canExport }: { initialScan: ScanWit
           <h1 className="truncate text-xl font-bold text-slate-900 sm:text-2xl" title={scan.site.normalized_url}>{scan.site.normalized_url}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
             <StatusBadge status={scan.status} />
+            {countOnly && <CountBadge />}
             <span>Started {formatDate(scan.started_at ?? scan.created_at)}</span>
             <span>· Duration {formatDuration(scan.started_at, scan.finished_at)}</span>
             <span>· Max {scan.max_pages} pages</span>
-            <span>· {checks.map((c) => SCAN_CHECK_LABELS[c]).join(", ")}</span>
+            {!countOnly && <span>· {checks.map((c) => SCAN_CHECK_LABELS[c]).join(", ")}</span>}
           </p>
           {scan.error && <p className="mt-2 text-sm text-red-700">Error: {scan.error}</p>}
           {canExport && <EmailStatus scan={scan} />}
         </div>
         <div className="flex flex-wrap items-start gap-2">
-          {canExport && canExportStatus(scan.status) && <ExportMenu scanId={scan.id} />}
+          {canExport && !countOnly && canExportStatus(scan.status) && <ExportMenu scanId={scan.id} />}
           {live ? (
             <Button variant="danger" disabled={pending} onClick={() => startTransition(() => cancelScan(scan.id))}>
               Cancel scan
@@ -149,6 +153,12 @@ export function ScanView({ initialScan, tab, canExport }: { initialScan: ScanWit
         </div>
       </dialog>
 
+      {countOnly && !live && scan.pages_found >= scan.max_pages && (
+        <p className="text-sm text-amber-800">
+          Reached the {scan.max_pages}-page cap: the site has at least this many pages.
+        </p>
+      )}
+
       {!canExport && !live && (
         <p className="text-sm text-slate-700">
           <Link href="/signup" className="font-medium text-blue-700 underline">
@@ -166,7 +176,7 @@ export function ScanView({ initialScan, tab, canExport }: { initialScan: ScanWit
             <ProgressBar
               value={scan.pages_scanned}
               max={Math.max(scan.pages_found, 1)}
-              label={PHASE_LABEL[scan.phase ?? "crawling"] ?? "Scanning"}
+              label={countOnly && scan.phase !== "finalizing" ? "Counting pages" : (PHASE_LABEL[scan.phase ?? "crawling"] ?? "Scanning")}
             />
           )}
         </div>
