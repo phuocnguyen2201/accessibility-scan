@@ -51,6 +51,7 @@ export function Overview({ scan, checks }: { scan: Scan; checks: ScanCheck[] }) 
               .select("id, url, a11y_score, violation_count, critical_count")
               .eq("scan_id", scan.id)
               .eq("crawl_status", "done")
+              .eq("excluded", false)
               .order("a11y_score", { ascending: true })
               .order("violation_count", { ascending: false })
               .limit(10),

@@ -7,7 +7,7 @@
 #         npm run deploy:netlify -- --draft (preview URL only)
 set -euo pipefail
 
-SITE_ID="5e6067b1-6e17-43c0-8705-bca3e255645b" # accessibility-scan.netlify.app
+SITE_ID="3af1cd4d-5f87-48e1-bd7c-081788dcef59" # accessibility-scan.netlify.app
 ROOT="$(cd "$(dirname "$0")/.." && (pwd -W 2>/dev/null || pwd))" # pwd -W gives D:/... paths in Git Bash
 MODE="--prod"
 [[ "${1:-}" == "--draft" ]] && MODE=""

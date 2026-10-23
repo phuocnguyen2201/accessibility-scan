@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IMPACTS, SCAN_CHECKS, SEO_CHECK_FIXES, splitLinks, type Dismissal, type LighthouseAudit, type LighthouseRow, type PageRow, type ScanCheck } from "@a11y/shared";
+import { ExcludePagesButton } from "@/components/ExcludePages";
 import { FalsePositiveButton, RestoreButton } from "@/components/FalsePositive";
 import { LighthouseButton } from "@/components/LighthouseButton";
 import { Card, StatCard } from "@/components/ui";
@@ -55,6 +56,20 @@ export default async function PageDetail({ params }: { params: Promise<{ scanId:
           {" · "}HTTP {p.http_status ?? "-"} · Depth {p.depth} · Scanned {formatDate(p.scanned_at)}
         </p>
         {p.error && <p className="mt-2 text-sm text-red-700">{p.error}</p>}
+        {p.excluded ? (
+          <p className="mt-2 text-sm text-slate-700">
+            Marked as not the same site.{" "}
+            <Link href={`/scans/${scanId}?tab=excluded`} className="text-blue-700 hover:underline">
+              Manage excluded pages
+            </Link>
+          </p>
+        ) : (
+          p.depth > 0 && (
+            <div className="mt-3">
+              <ExcludePagesButton scanId={scanId} pageIds={[p.id]} label="Not the same site" />
+            </div>
+          )
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">

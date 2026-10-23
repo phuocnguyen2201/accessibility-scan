@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SCAN_CHECKS, selectAll, type LighthouseRow, type PageRow, type Scan, type ScanCheck, type ScanSummary, type ViolationNode, type ViolationRow } from "@a11y/shared";
 
-export type ExportPage = Omit<PageRow, "parent_page_id" | "attempts" | "content_type" | "a11y_passes">;
+export type ExportPage = Omit<PageRow, "parent_page_id" | "attempts" | "content_type" | "a11y_passes" | "excluded">;
 export type ExportIssue = Pick<ViolationRow, "page_id" | "rule_id" | "impact" | "help" | "description" | "help_url" | "wcag_tags" | "node_count"> & {
   /** The first few stored elements (not all of them: large scans would load hundreds of MB). */
   nodes: ViolationNode[];
@@ -45,7 +45,7 @@ export async function loadExportData(db: SupabaseClient, scanId: string): Promis
 
   const [pages, issues, lighthouse, stats] = await Promise.all([
     selectAll<ExportPage>((from, to) =>
-      db.from("pages").select(PAGE_COLUMNS).eq("scan_id", scanId).order("depth").order("url").order("id").range(from, to),
+      db.from("pages").select(PAGE_COLUMNS).eq("scan_id", scanId).eq("excluded", false).order("depth").order("url").order("id").range(from, to),
     ),
     selectAll<IssueRow>((from, to) =>
       db
@@ -69,13 +69,16 @@ export async function loadExportData(db: SupabaseClient, scanId: string): Promis
     scan.summary ? Promise.resolve({ data: scan.summary }) : db.rpc("scan_stats", { p_scan_id: scanId }),
   ]);
 
+  // Pages marked "not the same site" are left out with their issues and Lighthouse results.
+  const kept = new Set(pages.map((p) => p.id));
+
   return {
     scan,
     summary: (stats.data as ScanSummary | null) ?? null,
     checks: scan.checks?.length ? scan.checks : [...SCAN_CHECKS],
     pages,
-    issues: issues.map(toIssue),
-    lighthouse: new Map(lighthouse.map((l) => [l.page_id, l])),
+    issues: issues.filter((i) => kept.has(i.page_id)).map(toIssue),
+    lighthouse: new Map(lighthouse.filter((l) => kept.has(l.page_id)).map((l) => [l.page_id, l])),
   };
 }
 

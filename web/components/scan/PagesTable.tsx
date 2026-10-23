@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { PageRow, ScanCheck } from "@a11y/shared";
 import { browserClient, selectAll } from "@/lib/supabase";
 import { shortPath } from "@/lib/format";
+import { ExcludePagesButton } from "../ExcludePages";
 import { Button, Card, ScoreBadge } from "../ui";
 
 type SortKey = "url" | "depth" | "http_status" | "a11y_score" | "seo_score" | "perf_score" | "violation_count";
@@ -45,11 +46,12 @@ export function PagesTable({ scanId, live, checks }: { scanId: string; live: boo
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<{ key: SortKey; asc: boolean }>({ key: "depth", asc: true });
   const [limit, setLimit] = useState(PAGE_SIZE);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const db = browserClient();
     selectAll<PageRow>((from, to) =>
-      db.from("pages").select(COLUMNS).eq("scan_id", scanId).order("created_at").range(from, to) as never,
+      db.from("pages").select(COLUMNS).eq("scan_id", scanId).eq("excluded", false).order("created_at").range(from, to) as never,
     ).then((rows) => setPages(new Map(rows.map((r) => [r.id, r]))));
 
     if (!live) return;
@@ -58,7 +60,12 @@ export function PagesTable({ scanId, live, checks }: { scanId: string; live: boo
       .on("postgres_changes", { event: "*", schema: "public", table: "pages", filter: `scan_id=eq.${scanId}` }, (payload) => {
         const row = payload.new as PageRow;
         if (!row?.id) return;
-        setPages((prev) => new Map(prev ?? []).set(row.id, { ...prev?.get(row.id), ...row }));
+        setPages((prev) => {
+          const next = new Map(prev ?? []);
+          if (row.excluded) next.delete(row.id);
+          else next.set(row.id, { ...prev?.get(row.id), ...row });
+          return next;
+        });
       })
       .subscribe();
     return () => {
@@ -104,6 +111,34 @@ export function PagesTable({ scanId, live, checks }: { scanId: string; live: boo
   };
 
   if (!pages) return <p className="text-slate-600">Loading pages...</p>;
+
+  // The start page defines the site, so it can't be marked "not the same site".
+  const selectable = rows.slice(0, limit).filter((p) => p.depth > 0);
+  const allSelected = selectable.length > 0 && selectable.every((p) => selected.has(p.id));
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  const removeSelected = () => {
+    setPages((prev) => {
+      const next = new Map(prev ?? []);
+      for (const id of selected) next.delete(id);
+      return next;
+    });
+    setSelected(new Set());
+  };
+  const checkbox = (p: PageRow) =>
+    p.depth > 0 && (
+      <input
+        type="checkbox"
+        checked={selected.has(p.id)}
+        onChange={() => toggle(p.id)}
+        aria-label={`Select ${p.url}`}
+        className="size-4"
+      />
+    );
 
   return (
     <Card>
@@ -165,11 +200,23 @@ export function PagesTable({ scanId, live, checks }: { scanId: string; live: boo
         </p>
       </div>
 
+      {selected.size > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md bg-slate-100 px-3 py-2 text-sm">
+          <span aria-live="polite">{selected.size} selected</span>
+          <ExcludePagesButton scanId={scanId} pageIds={[...selected]} label="Mark as not the same site" onDone={removeSelected} />
+          <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => setSelected(new Set())}>
+            Clear selection
+          </Button>
+        </div>
+      )}
+
       <ul className="divide-y divide-slate-100 sm:hidden">
         {rows.slice(0, limit).map((p) => {
           const linked = p.crawl_status === "done" || p.crawl_status === "error";
           return (
-            <li key={p.id} className="py-3">
+            <li key={p.id} className="flex gap-3 py-3">
+              <div className="w-4 shrink-0 pt-1">{checkbox(p)}</div>
+              <div className="min-w-0 flex-1">
               {linked ? (
                 <Link href={`/scans/${scanId}/pages/${p.id}`} className="block truncate font-medium text-blue-700 hover:underline" title={p.url}>
                   {shortPath(p.url)}
@@ -213,6 +260,7 @@ export function PagesTable({ scanId, live, checks }: { scanId: string; live: boo
                 <span>·</span>
                 <span title={p.error ?? undefined}>{STATUS_TEXT[p.crawl_status]}</span>
               </div>
+              </div>
             </li>
           );
         })}
@@ -223,6 +271,16 @@ export function PagesTable({ scanId, live, checks }: { scanId: string; live: boo
           <caption className="sr-only">Pages found on this site. Column headers are sortable.</caption>
           <thead className="border-b border-slate-200 text-xs text-slate-600">
             <tr>
+              <th scope="col" className="w-8 px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  disabled={!selectable.length}
+                  onChange={() => setSelected(allSelected ? new Set() : new Set(selectable.map((p) => p.id)))}
+                  aria-label="Select all shown pages"
+                  className="size-4"
+                />
+              </th>
               {header("url", "Page")}
               {header("depth", "Depth", "text-right")}
               {header("http_status", "HTTP", "text-right")}
@@ -238,6 +296,7 @@ export function PagesTable({ scanId, live, checks }: { scanId: string; live: boo
           <tbody className="divide-y divide-slate-100">
             {rows.slice(0, limit).map((p) => (
               <tr key={p.id} className="hover:bg-slate-50">
+                <td className="px-3 py-2">{checkbox(p)}</td>
                 <td className="max-w-md px-3 py-2">
                   {p.crawl_status === "done" || p.crawl_status === "error" ? (
                     <Link href={`/scans/${scanId}/pages/${p.id}`} className="block truncate font-medium text-blue-700 hover:underline" title={p.url}>

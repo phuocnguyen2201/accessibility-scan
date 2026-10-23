@@ -10,6 +10,7 @@ import { browserClient } from "@/lib/supabase";
 import { formatDate, formatDuration } from "@/lib/format";
 import { ExportMenu } from "../ExportMenu";
 import { Button, CountBadge, ProgressBar, StatusBadge } from "../ui";
+import { ExcludedPages, type ExclusionRow } from "./ExcludedPages";
 import { Overview } from "./Overview";
 import { PagesTable } from "./PagesTable";
 
@@ -25,7 +26,17 @@ const PHASE_LABEL: Record<string, string> = {
 };
 
 /** canExport: the viewer is a registered user (guests can't download or get reports by email). */
-export function ScanView({ initialScan, tab, canExport }: { initialScan: ScanWithSite; tab: "overview" | "pages"; canExport: boolean }) {
+export function ScanView({
+  initialScan,
+  tab,
+  canExport,
+  exclusions,
+}: {
+  initialScan: ScanWithSite;
+  tab: "overview" | "pages" | "excluded";
+  canExport: boolean;
+  exclusions: ExclusionRow[];
+}) {
   const [scan, setScan] = useState(initialScan);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -189,9 +200,14 @@ export function ScanView({ initialScan, tab, canExport }: { initialScan: ScanWit
         <Link href={`/scans/${scan.id}?tab=pages`} className={tabClass(tab === "pages")} aria-current={tab === "pages" ? "page" : undefined}>
           Pages ({scan.pages_found})
         </Link>
+        <Link href={`/scans/${scan.id}?tab=excluded`} className={tabClass(tab === "excluded")} aria-current={tab === "excluded" ? "page" : undefined}>
+          Not the same site ({exclusions.length})
+        </Link>
       </nav>
 
-      {tab === "overview" ? <Overview scan={scan} checks={checks} /> : <PagesTable scanId={scan.id} live={live} checks={checks} />}
+      {tab === "overview" && <Overview scan={scan} checks={checks} />}
+      {tab === "pages" && <PagesTable scanId={scan.id} live={live} checks={checks} />}
+      {tab === "excluded" && <ExcludedPages exclusions={exclusions} />}
     </div>
   );
 }

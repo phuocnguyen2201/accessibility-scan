@@ -14,13 +14,15 @@ interface CrawlContext {
   robots: Robots;
   /** Empty for page counts: pages are only loaded to find links. */
   checks: ScanCheck[];
+  /** Page keys the user marked "not the same site"; never enqueued. */
+  excluded: Set<string>;
 }
 
 function crawlableLinks(ctx: CrawlContext, hrefs: string[]): NormalizedUrl[] {
   const out: NormalizedUrl[] = [];
   for (const href of hrefs) {
     const link = normalizeUrl(href);
-    if (link && isCrawlable(link, ctx.siteHost) && isAllowed(ctx.robots, link.url)) out.push(link);
+    if (link && isCrawlable(link, ctx.siteHost) && !ctx.excluded.has(link.key) && isAllowed(ctx.robots, link.url)) out.push(link);
   }
   return out;
 }
@@ -201,7 +203,10 @@ export async function runScan(scan: Scan, browser: Browser) {
   await updateScan(scan.id, { phase: "crawling" });
 
   const robots = await loadRobots(startUrl.origin);
-  const ctx: CrawlContext = { scan, siteHost: start.host, robots, checks };
+  const exclusions = check(await db.from("page_exclusions").select("page_key").eq("site_id", scan.site_id), "load exclusions");
+  const excluded = new Set((exclusions ?? []).map((e) => e.page_key as string));
+  if (excluded.size) log(scan, `${excluded.size} excluded`);
+  const ctx: CrawlContext = { scan, siteHost: start.host, robots, checks, excluded };
 
   // Seeding is idempotent (unique per scan), so a resumed scan just skips this.
   await enqueuePages(scan.id, null, 0, [{ url: start.url, key: start.key }]);

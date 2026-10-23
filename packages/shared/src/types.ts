@@ -75,6 +75,8 @@ export interface ScanSummary {
   total_violations: number;
   /** Elements in issues marked as false positives (excluded from every other number). */
   dismissed_violations?: number;
+  /** Pages marked "not the same site" (excluded from every other number). */
+  excluded_pages?: number;
   impact_counts: Record<Impact, number>;
   top_issues: TopIssue[];
 }
@@ -137,6 +139,8 @@ export interface PageRow {
   lighthouse_status: LighthouseStatus;
   error: string | null;
   scanned_at: string | null;
+  /** Marked "not the same site": hidden from results, scores and exports. */
+  excluded: boolean;
 }
 
 export interface ViolationRow {
@@ -161,6 +165,17 @@ export interface Dismissal {
   rule_id: string;
   /** Page dedupe key, or "" when the rule is dismissed on every page of the site. */
   page_key: string;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface PageExclusion {
+  id: string;
+  site_id: string;
+  user_id: string;
+  /** Page dedupe key (pages.normalized_url). */
+  page_key: string;
+  url: string;
   reason: string | null;
   created_at: string;
 }

@@ -246,6 +246,78 @@ export async function restoreViolation(dismissalId: string): Promise<{ ok: true 
   return { ok: true };
 }
 
+const excludeSchema = z.object({
+  scanId: z.string().uuid(),
+  pageIds: z.array(z.string().uuid()).min(1).max(500),
+  reason: z.string().trim().max(500).optional(),
+});
+
+/**
+ * Marks pages as "not the same site": hidden from this site's results, scores and exports,
+ * and skipped by the crawler on future re-scans until added back.
+ */
+export async function excludePages(input: z.input<typeof excludeSchema>): Promise<{ ok: true } | { ok: false; error: string }> {
+  const parsed = excludeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid request" };
+  const user = await currentUser();
+  if (!user) return NOT_SIGNED_IN;
+
+  // RLS: the user's client only returns pages of their own scans.
+  const db = await serverClient();
+  const { data: scan } = await db.from("scans").select("id, site_id").eq("id", parsed.data.scanId).maybeSingle();
+  if (!scan) return { ok: false, error: "Scan not found" };
+  const { data: pages } = await db
+    .from("pages")
+    .select("url, normalized_url, depth")
+    .eq("scan_id", scan.id)
+    .in("id", parsed.data.pageIds);
+  if (!pages?.length) return { ok: false, error: "Pages not found" };
+  if (pages.some((p) => p.depth === 0)) return { ok: false, error: "The start page can't be excluded from its own site." };
+
+  const admin = adminClient();
+  const { error } = await admin.from("page_exclusions").upsert(
+    pages.map((p) => ({
+      site_id: scan.site_id,
+      user_id: user.id,
+      page_key: p.normalized_url,
+      url: p.url,
+      reason: parsed.data.reason || null,
+    })),
+    { onConflict: "site_id,page_key" },
+  );
+  if (error) return { ok: false, error: error.message };
+
+  const { error: applyError } = await admin.rpc("apply_site_exclusions", { p_site_id: scan.site_id });
+  if (applyError) return { ok: false, error: applyError.message };
+  revalidatePath(`/scans/${scan.id}`, "layout");
+  return { ok: true };
+}
+
+/** Adds excluded pages back: they count in results again and are scanned on the next scan. */
+export async function includePages(exclusionIds: string[]): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ids = z.array(z.string().uuid()).min(1).max(500).safeParse(exclusionIds);
+  if (!ids.success) return { ok: false, error: "Invalid request" };
+  const user = await currentUser();
+  if (!user) return NOT_SIGNED_IN;
+
+  const { data: rows } = await (await serverClient()).from("page_exclusions").select("id, site_id").in("id", ids.data);
+  if (!rows?.length) return { ok: false, error: "Not found" };
+
+  const admin = adminClient();
+  const { error } = await admin
+    .from("page_exclusions")
+    .delete()
+    .in("id", rows.map((r) => r.id))
+    .eq("user_id", user.id);
+  if (error) return { ok: false, error: error.message };
+  for (const siteId of new Set(rows.map((r) => r.site_id))) {
+    const { error: applyError } = await admin.rpc("apply_site_exclusions", { p_site_id: siteId });
+    if (applyError) return { ok: false, error: applyError.message };
+  }
+  revalidatePath("/scans", "layout");
+  return { ok: true };
+}
+
 /**
  * Deletes one scan and all of its pages, issues and Lighthouse results (FK cascade).
  * The site row is kept, so its false-positive markings survive and apply to future scans.
