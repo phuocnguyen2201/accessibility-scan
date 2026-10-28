@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Mail } from "lucide-react";
+import { Info, Mail } from "lucide-react";
 import { SCAN_CHECK_LABELS, SCAN_CHECKS, type ScanCheck } from "@a11y/shared";
 import { checkSite, startScan, type CheckResult } from "@/app/actions";
 import { formatDate } from "@/lib/format";
@@ -78,6 +78,15 @@ export function ScanForm({
   return (
     <Card>
       <form onSubmit={onSubmit} noValidate>
+        <p
+          id="scan-scope"
+          className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            Automated scans only detect common issues. Most accessibility checks still need a person to verify them.
+          </span>
+        </p>
         <label htmlFor="url" className="mb-1 block text-sm font-medium text-slate-800">
           Website URL
         </label>
@@ -92,7 +101,7 @@ export function ScanForm({
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             aria-invalid={!!error}
-            aria-describedby={error ? "url-error" : undefined}
+            aria-describedby={error ? "scan-scope url-error" : "scan-scope"}
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-500"
           />
           <Button type="submit" disabled={pending || !url.trim() || checks.length === 0}>
